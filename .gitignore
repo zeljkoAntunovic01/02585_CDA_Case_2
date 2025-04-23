@@ -6,5 +6,6 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-
+# Mac / Linux system files
+.DS_Store
 
