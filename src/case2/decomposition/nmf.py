@@ -122,6 +122,9 @@ def run_nmf_pipeline(
     Execute the NMF analysis: plot explained variance curve with vline at chosen k,
     then component bars.
     """
+
+    print("Running NMF pipeline...")
+    
     # 1) Preprocess and evaluate
     X_nonneg, _ = preprocess_for_nmf(X)
     errs = evaluate_nmf(X_nonneg, k_list)
@@ -132,7 +135,7 @@ def run_nmf_pipeline(
 
     # 3) Determine chosen k
     chosen = select_k or k_list[int(np.argmax(explained_var))]
-    print(f"Selected k = {chosen} with explained variance={explained_var[k_list.index(chosen)]:.4f}")
+    print(f"Selected k = {chosen} with VE = {explained_var[k_list.index(chosen)]:.4f}")
 
     # 4) Plot explained variance with vertical marker
     plot_explained_variance(k_list, explained_var, chosen_k=chosen)
