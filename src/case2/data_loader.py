@@ -70,17 +70,44 @@ def split_features_and_labels(
     y = df[label_cols].copy()
     return X, y
 
-def load_data():
-    base = Path(__file__).parent.parent.parent / 'data' / 'raw' 
-    print("Loading datasets from:", base)
-    hr_file = base / 'HR_data.csv'
+def run_data_loading():
+    # base = Path(__file__).parent.parent.parent / 'data' / 'raw' 
+    # print("Loading datasets from:", base)
+    # hr_file = base / 'HR_data.csv'
+    # hr_df = load_hr_data(hr_file)
+    # X, y = split_features_and_labels(hr_df)
+
+    # print("Loaded HR_data.csv with shape:", hr_df.shape)
+    # print(hr_df.head)
+    # print("Feature matrix X shape:", X.shape)
+    # print(X.head())
+    # print("Labels matrix y shape:", y.shape)
+    # print(y.head())
+    # return hr_df, X, y
+    # Determine directories
+    base = Path(__file__).parent.parent.parent  # project root
+    raw = base / 'data' / 'raw'
+    processed = base / 'data' / 'processed'
+
+    # Ensure processed directory exists
+    processed.mkdir(parents=True, exist_ok=True)
+
+    print("Loading datasets from:", raw)
+    hr_file = raw / 'HR_data.csv'
     hr_df = load_hr_data(hr_file)
     X, y = split_features_and_labels(hr_df)
 
-    print("Loaded HR_data.csv with shape:", hr_df.shape)
-    print(hr_df.head)
-    print("Feature matrix X shape:", X.shape)
-    print(X.head())
-    print("Labels matrix y shape:", y.shape)
-    print(y.head())
+    # Save processed outputs
+    X.to_csv(processed / 'X.csv')
+    y.to_csv(processed / 'y.csv')
+    hr_df.to_csv(processed / 'HR_data_processed.csv')
+
+    print("Saved processed data to:", processed)
+    # print("HR_data shape:", hr_df.shape)
+    # print(hr_df.head())
+    # print("Feature matrix X shape:", X.shape)
+    # print(X.head())
+    # print("Labels matrix y shape:", y.shape)
+    # print(y.head())
+
     return hr_df, X, y
