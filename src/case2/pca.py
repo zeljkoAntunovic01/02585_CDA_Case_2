@@ -118,7 +118,6 @@ def scree_plot(X: np.ndarray, pca: PCA) -> None:
     plt.xlabel("Principal Component")
     plt.ylabel("Eigenvalue")
     plt.xticks(range(1, n_components + 1))
-    plt.grid()
     plt.legend()
     plt.savefig(
         FIGURE_DIR / "pca" /"scree_plot.png",
