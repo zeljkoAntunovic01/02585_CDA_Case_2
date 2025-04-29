@@ -172,41 +172,49 @@ def plot_pca(X: np.ndarray, pca: PCA) -> None:
     # Transform the data
     X_pca = pca.transform(X)
 
-    # Extract 'Phase' from the index.
-    phases = X.index.get_level_values("Phase")
-    unique_phases = phases.unique()
-    colors = ["red", "blue", "green"]  # Define colors for each phase
+    # Extract unique values
+    phases = np.sort(X.index.get_level_values("Phase").unique())
+    frustrations = np.sort(X["Frustrated"].unique())
+    determined = np.sort(X["determined"].unique())
 
-    # Create a color mapping for each phase
-    color_mapping = {
-        phase: colors[i % len(colors)] for i, phase in enumerate(unique_phases)
-    }
+    titles = {"Phase": phases, "Frustrated": frustrations, "determined": determined}
 
-    plt.figure(figsize=(8, 6))
-    for phase in unique_phases:
-        mask = phases == phase
-        plt.scatter(
-            X_pca[mask, 0],
-            X_pca[mask, 1],
-            label=phase,
-            alpha=0.5,
-            color=color_mapping[phase],
-        )
+    for title, values in titles.items():
 
-    plt.xlabel("Principal Component 1")
-    plt.ylabel("Principal Component 2")
-    plt.legend(title="Phase")
+        print(f"{title}: {values}")
 
-    if isinstance(pca, SparsePCA):
-        plt.title("Sparse PCA of HR Data by Phase")
-        plt.savefig(
-            FIGURE_DIR / "sparse_pca" /"sparse_pca_plot.png",
-        )
-    else:
-        plt.title("PCA of HR Data by Phase")
-        plt.savefig(
-            FIGURE_DIR / "pca" /"pca_plot.png",
-        )
+        colors = sns.color_palette("deep", len(values))
+        color_mapping = {
+            value: colors[i % len(colors)] for i, value in enumerate(values)}
+        
+        plt.figure(figsize=(8, 6))
+        for unique in values:
+            try: 
+                mask = X[title] == unique
+
+            except KeyError:
+                # If the title is not in the DataFrame, use index level
+                mask = X.index.get_level_values("Phase") == unique
+            
+            plt.scatter(
+                X_pca[mask, 0],
+                X_pca[mask, 1],
+                label=unique,
+                alpha=0.5,
+                color=color_mapping[unique],)
+        plt.xlabel("Principal Component 1")
+        plt.ylabel("Principal Component 2")
+        plt.legend(title=title)
+        if isinstance(pca, SparsePCA):
+            plt.title(f"Sparse PCA - {title}")
+            plt.savefig(
+                FIGURE_DIR / "sparse_pca" / f"sparse_pca_{title}.png",
+            )
+        else:
+            plt.title(f"PCA - {title}")
+            plt.savefig(
+                FIGURE_DIR / "pca" / f"pca_{title}.png",
+            )
 
 
 def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -> None:
