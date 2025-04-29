@@ -210,6 +210,49 @@ def plot_pca(X: np.ndarray, pca: PCA) -> None:
         )
 
 
+def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -> None:
+    """
+    Plot the features against the loadings of the PCA components.
+    
+    Parameters
+    ----------
+    pca : PCA
+        Fitted PCA object.
+    """
+
+    loadings = pca.components_.T
+    loadings = loadings[:, :2]  # Take only the first two components
+    feature_names = data.columns
+
+    # find index for features
+    feature_indices = [feature_names.get_loc(feature) for feature in features]
+    feature_names = [feature_names[i] for i in feature_indices]
+
+
+    plt.figure(figsize=(8, 6))
+    plt.axhline(0, color='grey', linestyle='--', linewidth=1)
+    plt.axvline(0, color='grey', linestyle='--', linewidth=1)
+
+    # Plot the loadings as vectors
+    for idx, varname in zip(feature_indices, feature_names):
+        plt.plot(loadings[idx, 0], loadings[idx, 1], 'o', color='r')
+        plt.text(loadings[idx, 0], loadings[idx, 1] + 0.025, varname, color='b', ha='center', va='center')
+
+    plt.xlabel("PC 1")
+    plt.ylabel("PC 2")
+    plt.title("PCA Loadings Plot")
+    plt.grid(True)
+    plt.tight_layout()
+    if isinstance(pca, SparsePCA):
+        plt.savefig(
+            FIGURE_DIR / "sparse_pca" /"sparse_pca_loadings.png",
+        )
+    else:
+        plt.savefig(
+            FIGURE_DIR / "pca" /"pca_loadings.png",
+        )
+    
+
 def pca_pipeline(pca: PCA) -> None:
     """
     Run the PCA pipeline: load data, preprocess, fit PCA, and plot results.
@@ -247,6 +290,10 @@ def pca_pipeline(pca: PCA) -> None:
 
     # Plot PCA
     plot_pca(hr_preprocessed, pca)
+
+    # Plot PCA loadings
+    features = y.columns.drop(["Cohort", "Puzzler"])
+    plot_features_against_loadings(hr_preprocessed, features, pca)
 
 
 if __name__ == "__main__":
