@@ -7,6 +7,7 @@ from data_loader import load_data
 from collections import defaultdict
 import seaborn as sns
 from matplotlib.cm import get_cmap
+import os
 
 sns.set_theme(style="darkgrid")
 FIG_DIR = Path(__file__).parent.parent.parent / "docs" / "figures" / "som"
@@ -173,7 +174,7 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{emotion}.png")
     plt.close()
 
-def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame):
+def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame, y_df: pd.DataFrame, df: pd.DataFrame):
     """
     Scatterplot of BMU locations colored by Phase.
     Each phase is represented by a different color.
@@ -291,6 +292,11 @@ def som_pipeline():
     som = train_som(X_scaled.to_numpy(), x_dim=12, y_dim=12, num_iter=5000)
 
     # Visualizations
+    # Create directories for saving figures
+    os.makedirs(FIG_DIR / "label_heatmaps", exist_ok=True)
+    os.makedirs(FIG_DIR / "label_scatter", exist_ok=True)
+    os.makedirs(FIG_DIR / "phase_hitmaps", exist_ok=True)
+    
     # U-Matrix
     plot_u_matrix(som)
 
@@ -305,7 +311,7 @@ def som_pipeline():
             plot_emotion_scatter(som, X_scaled.to_numpy(), y_processed[emotion], emotion)
 
     # Phase scatter: Where do phases land on the SOM?
-    plot_bmu_scatter_by_phase(som, X_df)
+    plot_bmu_scatter_by_phase(som, X_df, y_df, df)
 
     # Phase-wise hit maps
     for phase in ['phase1', 'phase2', 'phase3']:
