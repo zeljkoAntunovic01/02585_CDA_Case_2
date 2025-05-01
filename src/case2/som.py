@@ -6,7 +6,9 @@ from pathlib import Path
 from data_loader import load_data
 from collections import defaultdict
 from sklearn.cluster import KMeans
+import seaborn as sns
 
+sns.set_theme(style="darkgrid")
 FIG_DIR = Path(__file__).parent.parent.parent / "docs" / "figures" / "som"
 
 def preprocess_som_data(X: pd.DataFrame, y: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -223,7 +225,9 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
         unique_ids = np.random.choice(unique_ids, size=max_individuals, replace=False)
 
     plt.figure(figsize=(10, 10))
-    
+
+    arrow_colors = ['red', 'green']  # P1→P2: red, P2→P3: green
+
     for person_id in unique_ids:
         person_rounds = df.loc[person_id].index.get_level_values("Round").unique()
         for round_id in person_rounds:
@@ -232,13 +236,18 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
                 for phase in ['phase1', 'phase2', 'phase3']:
                     x_vec = X_scaled.loc[(person_id, round_id, phase)]
                     bmu_sequence.append(som.winner(x_vec.to_numpy()))
-                xs, ys = zip(*bmu_sequence)
-                plt.plot(xs, ys, marker='o', linestyle='-', alpha=0.5)
+                
+                for i in range(2):  # phase1→2 and phase2→3
+                    x0, y0 = bmu_sequence[i]
+                    x1, y1 = bmu_sequence[i+1]
+                    dx, dy = x1 - x0, y1 - y0
+                    plt.arrow(x0 + 0.5, y0 + 0.5, dx, dy,
+                              head_width=0.3, head_length=0.3, fc=arrow_colors[i], ec=arrow_colors[i],
+                              length_includes_head=True, alpha=0.6)
             except KeyError:
-                # Skip if any phase is missing for that person-round
                 continue
 
-    plt.title("SOM Phase Trajectories (P1 → P2 → P3)")
+    plt.title("SOM Phase Trajectories with Direction (P1 → P2 → P3)")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
     plt.grid(True)
@@ -278,4 +287,4 @@ if __name__ == '__main__':
         plot_phase_hitmap(som, X_phase_scaled.to_numpy(), phase)
 
     # Plot trajectories for individuals
-    plot_phase_trajectories(som, X_scaled, df, max_individuals=1)
+    plot_phase_trajectories(som, X_scaled, df, max_individuals=3)
