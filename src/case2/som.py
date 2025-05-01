@@ -5,8 +5,8 @@ from minisom import MiniSom
 from pathlib import Path
 from data_loader import load_data
 from collections import defaultdict
-from sklearn.cluster import KMeans
 import seaborn as sns
+from matplotlib.cm import get_cmap
 
 sns.set_theme(style="darkgrid")
 FIG_DIR = Path(__file__).parent.parent.parent / "docs" / "figures" / "som"
@@ -42,7 +42,7 @@ def preprocess_som_data(X: pd.DataFrame, y: pd.DataFrame) -> tuple[pd.DataFrame,
     y_preprocessed = y_mapped.fillna(-1)
     return X_preprocessed, y_preprocessed
 
-def get_phase_data(X_df: pd.DataFrame, y_df: pd.DataFrame, full_df: pd.DataFrame, phase_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
+def get_phase_specific_data(X_df: pd.DataFrame, y_df: pd.DataFrame, full_df: pd.DataFrame, phase_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Filters feature and label data for a given phase.
 
@@ -68,13 +68,34 @@ def get_phase_data(X_df: pd.DataFrame, y_df: pd.DataFrame, full_df: pd.DataFrame
     return X_phase, y_phase
 
 def train_som(X: np.ndarray, x_dim=10, y_dim=10, sigma=1.0, learning_rate=0.5, num_iter=5000) -> MiniSom:
+    """
+    Train a Self-Organizing Map (SOM) on the input data.
+
+    Parameters
+    ----------
+    X : np.ndarray
+        Input data for SOM.
+    x_dim : int
+        Number of neurons in the x dimension.
+    y_dim : int
+        Number of neurons in the y dimension.
+    sigma : float
+        Width of the neighborhood function.
+    learning_rate : float
+        Learning rate for the SOM.
+    num_iter : int
+        Number of iterations for training.
+    -----------
+    Returns
+    som : MiniSom
+        Trained SOM object.
+    """
     som = MiniSom(x=x_dim, y=y_dim, input_len=X.shape[1], sigma=sigma,
                   learning_rate=learning_rate, neighborhood_function='gaussian', random_seed=42)
     som.pca_weights_init(X)
     print("Training SOM...")
     som.train(X, num_iter, verbose=True)
     return som
-
 
 def plot_u_matrix(som: MiniSom):
     """
@@ -91,7 +112,7 @@ def plot_u_matrix(som: MiniSom):
     plt.savefig(FIG_DIR / "som_u_matrix.png")
     plt.close()
 
-def plot_label_maps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: str):
+def plot_label_heatmaps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: str):
     """
     Plot a heatmap of the average label values for each neuron in the SOM.
     Each neuron is represented by a grid cell, and the color intensity indicates the average value of the label for that neuron.
@@ -127,43 +148,30 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     The color intensity indicates the value of the emotion for that neuron.
     """
     plt.figure(figsize=(10, 10))
-    for x, val in zip(X, y):
-        w = som.winner(x)
-        plt.text(w[0] + 0.5, w[1] + 0.5, str(int(val)),
-                 color=plt.cm.rainbow(val / 5.0),  # normalize if range is 0–5
-                 fontdict={'weight': 'bold', 'size': 11})
-    plt.title(f"SOM Emotion Scatter: {emotion}")
-    plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
-    plt.gca().invert_yaxis()
-    plt.tight_layout()
-    plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{emotion}.png")
-    plt.close()
 
-#TODO: Not used for now because the clusters don't seem to be meaningful
-def plot_emotion_clusters_discrete(som: MiniSom, X: np.ndarray, y: pd.Series, n_clusters=6, emotion_name=""):
-    """
-    Cluster SOM neurons and overlay discrete emotion label values as text on the grid.
-    Neuron cluster membership is calculated via KMeans.
-    """
-    weights = som.get_weights().reshape(-1, X.shape[1])
-    kmeans = KMeans(n_clusters=n_clusters, random_state=0).fit(weights)
-    neuron_labels = kmeans.labels_.reshape(som.get_weights().shape[:2])
+    unique_vals = sorted(y.unique())
+    val_min, val_max = min(unique_vals), max(unique_vals)
+    cmap = get_cmap("tab10" if val_max <= 10 else "tab20")
 
-    plt.figure(figsize=(10, 10))
-    for x_vec, label in zip(X, y):
+    # Track added labels to prevent duplicate legends
+    added_labels = set()
+
+    for x_vec, val in zip(X, y):
         bmu = som.winner(x_vec)
         jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
         jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
-        label_int = int(label)
-        plt.text(jitter_x, jitter_y, str(label_int),
-                 color=plt.cm.Set1((label_int - 1) / 4),  # normalize 1–5 to 0–1 for Set1
-                 fontdict={'weight': 'bold', 'size': 11})
+        color = cmap((val - val_min) / (val_max - val_min))
+        label = str(val) if val not in added_labels else None
+        plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label)
+        added_labels.add(val)
 
-    plt.title(f"SOM Neuron Clusters with Discrete Emotion: {emotion_name}")
-    plt.axis([0, neuron_labels.shape[0], 0, neuron_labels.shape[1]])
+    plt.title(f"SOM Emotion Scatter: {emotion}")
+    plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
+    plt.legend(title="Emotion Scale")
     plt.tight_layout()
-    plt.show()
+    plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{emotion}.png")
+    plt.close()
 
 def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame):
     """
@@ -171,24 +179,32 @@ def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame):
     Each phase is represented by a different color.
     The scatterplot shows the distribution of BMUs for each phase on the SOM grid.
     """
-    phase_colors = {'phase1': 'green', 'phase2': 'red', 'phase3': 'blue'}
-    plt.figure(figsize=(10, 10))
+    palette = sns.color_palette("colorblind", 3)  # 3 distinct, colorblind-friendly colors
+    phase_labels = ['phase1', 'phase2', 'phase3']
+    phase_colors = dict(zip(phase_labels, palette))
 
-    for phase, color in phase_colors.items():
-        X_phase_df, _ = get_phase_data(X_df, y_df, df, phase)
-        X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])  # ← added
+    plt.figure(figsize=(10, 10))
+    plotted_labels = set()
+
+    for phase in phase_labels:
+        color = phase_colors[phase]
+        X_phase_df, _ = get_phase_specific_data(X_df, y_df, df, phase)
+        X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])
         for x in X_phase_scaled.to_numpy():
             bmu = som.winner(x)
             jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
             jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
-            plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=phase if f'{phase}_plotted' not in locals() else "")
-            locals()[f'{phase}_plotted'] = True  # prevents duplicate legends
+            label = phase if phase not in plotted_labels else None
+            plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label)
+        plotted_labels.add(phase)
+
 
     plt.title("BMU Locations Colored by Phase")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
+    plt.legend(title="Phase")
     handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))  # remove duplicate legends
+    by_label = dict(zip(labels, handles))
     plt.legend(by_label.values(), by_label.keys())
     plt.tight_layout()
     plt.savefig(FIG_DIR / "som_bmu_scatter_by_phase.png")
@@ -255,34 +271,45 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
     plt.savefig(FIG_DIR / "som_phase_trajectories.png")
     plt.close()
 
-if __name__ == '__main__':
+def som_pipeline():
+    """
+    Main pipeline for SOM analysis.
+    1. Load and preprocess data.
+    2. Train SOM.
+    3. Generate visualizations:
+         - U-Matrix
+         - Label heatmaps and scatter maps for each emotion label
+         - Phase scatter: Where do phases land on the SOM?
+         - Phase-wise hit maps
+         - Plot trajectories for individuals
+     """
+    # Fetch and preprocess data
     df, X_df, y_df = load_data()
-
-    # Preprocess using your custom method
-    X_scaled, y_processed = preprocess_som_data(X_df, y_df) 
+    X_scaled, y_processed = preprocess_som_data(X_df, y_df)
 
     # Train SOM
     som = train_som(X_scaled.to_numpy(), x_dim=12, y_dim=12, num_iter=5000)
 
     # Visualizations
+    # U-Matrix
     plot_u_matrix(som)
 
-    # Visualize label maps for emotions
+    # Visualize label heatmaps and scatter maps for each emotion label
     emotions = [
         'Frustrated', 'alert', 'ashamed', 'inspired', 'nervous',
         'attentive', 'afraid', 'active', 'determined'
     ]
     for emotion in emotions:
         if emotion in y_processed.columns:
-            plot_label_maps(som, X_scaled.to_numpy(), y_processed, emotion)
-            plot_emotion_scatter(som, X_scaled.to_numpy(), y_processed[emotion], emotion) 
+            plot_label_heatmaps(som, X_scaled.to_numpy(), y_processed, emotion)
+            plot_emotion_scatter(som, X_scaled.to_numpy(), y_processed[emotion], emotion)
 
     # Phase scatter: Where do phases land on the SOM?
     plot_bmu_scatter_by_phase(som, X_df)
 
     # Phase-wise hit maps
     for phase in ['phase1', 'phase2', 'phase3']:
-        X_phase_df, _ = get_phase_data(X_df, y_df, df, phase)
+        X_phase_df, _ = get_phase_specific_data(X_df, y_df, df, phase)
         X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])
         plot_phase_hitmap(som, X_phase_scaled.to_numpy(), phase)
 

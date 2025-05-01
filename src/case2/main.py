@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
-from data_loader import load_data
+from som import som_pipeline
 
 if __name__ == "__main__":
-    # Loading the data
-    hr_df, X, y = load_data()
+    # Run the SOM analysis on the dataset
+    som_pipeline()
