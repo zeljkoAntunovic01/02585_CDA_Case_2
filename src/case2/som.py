@@ -169,7 +169,13 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     plt.title(f"SOM Emotion Scatter: {emotion}")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
-    plt.legend(title="Emotion Scale")
+
+    # Sort legend numerically
+    handles, labels = plt.gca().get_legend_handles_labels()
+    label_handle_pairs = sorted(zip(labels, handles), key=lambda x: float(x[0]))
+    sorted_labels, sorted_handles = zip(*label_handle_pairs)
+    plt.legend(sorted_handles, sorted_labels, title="Emotion Scale")
+
     plt.tight_layout()
     plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{emotion}.png")
     plt.close()
@@ -191,22 +197,25 @@ def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame, y_df: pd.DataFra
         color = phase_colors[phase]
         X_phase_df, _ = get_phase_specific_data(X_df, y_df, df, phase)
         X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])
+        xs, ys = [], []
         for x in X_phase_scaled.to_numpy():
             bmu = som.winner(x)
             jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
             jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
-            label = phase if phase not in plotted_labels else None
-            plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label)
-        plotted_labels.add(phase)
-
+            xs.append(jitter_x)
+            ys.append(jitter_y)
+        plt.scatter(xs, ys, color=color, alpha=0.7, label=phase)
 
     plt.title("BMU Locations Colored by Phase")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
-    plt.legend(title="Phase")
+
+    # Sort legend alphabetically by phase name
     handles, labels = plt.gca().get_legend_handles_labels()
-    by_label = dict(zip(labels, handles))
-    plt.legend(by_label.values(), by_label.keys())
+    label_handle_pairs = sorted(zip(labels, handles), key=lambda x: x[0])
+    sorted_labels, sorted_handles = zip(*label_handle_pairs)
+    plt.legend(sorted_handles, sorted_labels, title="Phase")
+
     plt.tight_layout()
     plt.savefig(FIG_DIR / "som_bmu_scatter_by_phase.png")
     plt.close()
