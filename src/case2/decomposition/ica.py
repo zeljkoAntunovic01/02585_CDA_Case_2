@@ -9,6 +9,7 @@ from typing import List, Tuple, Optional
 from sklearn.exceptions import ConvergenceWarning
 import warnings
 from pathlib import Path
+from matplotlib import cm, lines
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 'figures'
@@ -123,23 +124,129 @@ def plot_mixing_matrix_grid(
     plt.close(fig)
 
 
-def plot_ica_scatter(
+# def plot_ica_scatter(
+#     S: np.ndarray,
+#     label: pd.Series,
+#     save_path: Optional[Path] = None
+# ) -> None:
+#     """
+#     Save scatter of first two independent components colored by label.
+#     """
+#     fig, ax = plt.subplots()
+#     sc = ax.scatter(S[:, 0], S[:, 1], c=label.values, cmap='viridis', alpha=0.7)
+#     ax.set_xlabel('IC 1')
+#     ax.set_ylabel('IC 2')
+#     ax.set_title('ICA Embedding')
+#     cbar = fig.colorbar(sc, ax=ax)
+#     cbar.set_label(label.name)
+#     fig.tight_layout()
+#     save_path = save_path or FIGURE_DIR / 'ica_embedding.png'
+#     fig.savefig(save_path)
+#     plt.close(fig)
+
+def plot_ica_scatter_emotions(
     S: np.ndarray,
-    label: pd.Series,
+    y: pd.DataFrame,
+    emotions: List[str],
     save_path: Optional[Path] = None
 ) -> None:
     """
-    Save scatter of first two independent components colored by label.
+    Save a grid of ICA 2-D scatter plots, one per emotion label in `emotions`,
+    coloring the points by the intensity of that emotion.
     """
-    fig, ax = plt.subplots()
-    sc = ax.scatter(S[:, 0], S[:, 1], c=label.values, cmap='viridis', alpha=0.7)
+    n = len(emotions)
+    cols = 3
+    rows = int(np.ceil(n / cols))
+
+    fig, axes = plt.subplots(
+        rows, cols, figsize=(cols * 4, rows * 4),
+        sharex=True, sharey=True
+    )
+    axes = axes.flatten()
+
+    for i, emo in enumerate(emotions):
+        ax = axes[i]
+        if emo not in y.columns:
+            ax.set_visible(False)
+            continue
+
+        # scatter colored by this emotion’s ratings
+        sc = ax.scatter(
+            S[:, 0], S[:, 1],
+            c=y[emo].values,
+            cmap='viridis',
+            alpha=0.7
+        )
+        ax.set_title(emo)
+        ax.set_xlabel('IC 1')
+        ax.set_ylabel('IC 2')
+
+        # individual colorbar per subplot
+        cbar = fig.colorbar(sc, ax=ax, shrink=0.7)
+        cbar.set_label(emo)
+
+    # turn off any extra axes
+    for j in range(n, len(axes)):
+        axes[j].axis('off')
+
+    fig.tight_layout()
+    save_path = save_path or FIGURE_DIR / 'ica_scatter_emotions.png'
+    fig.savefig(save_path)
+    plt.close(fig)
+
+def plot_ica_scatter_phase(
+    S: np.ndarray,
+    phases: List[str],
+    save_path: Optional[Path] = None
+) -> None:
+    """
+    Save scatter of the first two independent components,
+    colouring points by the 'Phase' category with a matching legend.
+    """
+    # Wrap phases in a pandas Index so factorize gets a supported type
+    phases_idx = pd.Index(phases)
+
+    # factorize without warning
+    codes, uniques = pd.factorize(phases_idx)
+
+    n_phases = len(uniques)
+    cmap = cm.get_cmap('viridis', n_phases)
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sc = ax.scatter(
+        S[:, 0],
+        S[:, 1],
+        c=codes,
+        cmap=cmap,
+        alpha=0.7
+    )
+
     ax.set_xlabel('IC 1')
     ax.set_ylabel('IC 2')
-    ax.set_title('ICA Embedding')
-    cbar = fig.colorbar(sc, ax=ax)
-    cbar.set_label(label.name)
+    ax.set_title('ICA Embedding by Phase')
+
+    # Build a legend that matches the scatter colors
+    handles = []
+    for i, phase in enumerate(uniques):
+        handles.append(
+            lines.Line2D(
+                [], [], 
+                marker='o', 
+                linestyle='',
+                color=cmap(i),
+                label=phase,
+                alpha=0.7
+            )
+        )
+    ax.legend(
+        handles=handles,
+        title='Phase',
+        loc='best',
+        frameon=False
+    )
+
     fig.tight_layout()
-    save_path = save_path or FIGURE_DIR / 'ica_embedding.png'
+    save_path = save_path or FIGURE_DIR / 'ica_embedding_phase.png'
     fig.savefig(save_path)
     plt.close(fig)
 
@@ -198,8 +305,22 @@ def run_ica_pipeline(
     S_sel, A_sel = compute_ica(X_np, chosen)
     plot_mixing_matrix_grid(A_sel, list(X.columns))
 
-    # 5) Scatter embedding colored by frustration
-    if 'Frustrated' in y.columns:
-        plot_ica_scatter(S_sel, y['Frustrated'], save_path=FIGURE_DIR / 'ica_embedding.png')
+    # 5) Plot scatter of first two independent components, colored by phase
+    phases = y.index.get_level_values('Phase').astype(str).tolist()
+    plot_ica_scatter_phase(S_sel, phases)
+
+    # 6) Plot scatter of first two independent components, colored by emotion
+    emotions = [
+        'Frustrated','upset','hostile','alert',
+        'ashamed','inspired','nervous','attentive','afraid',
+        'active','determined'
+    ]
+    print("Plotting ICA scatter for each emotion...")
+    plot_ica_scatter_emotions(
+        S_sel,
+        y,  # the full labels DataFrame
+        emotions,
+        save_path=FIGURE_DIR / 'ica_scatter_emotions.png'
+    )
 
     return evs
