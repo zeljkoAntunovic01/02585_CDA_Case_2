@@ -284,9 +284,26 @@ def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
     loadings = pca.components_
     for i in range(loadings.shape[0]):
         top_indices = np.argsort(loadings[i])[-n_features:]
+        bottom_indices = np.argsort(loadings[i])[:n_features]
         print(f"Top {n_features} features for component {i + 1}:")
         print(", ".join([features[idx] for idx in top_indices]))
+        print(f"Bottom {n_features} features for component {i + 1}:")
+        print(", ".join([features[idx] for idx in bottom_indices]))
         print()
+        # Save the top features to a file
+        if isinstance(pca, SparsePCA):
+            with open(FIGURE_DIR / "sparse_pca" / "sparse_pca_top_features.txt", "a") as f:
+                f.write(f"Top {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in top_indices]) + "\n\n")
+                f.write(f"Bottom {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in bottom_indices]) + "\n\n")
+        else:
+            with open(FIGURE_DIR / "pca" / "pca_top_features_component.txt", "a") as f:
+                f.write(f"Top {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in top_indices]) + "\n\n")
+                f.write(f"Bottom {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in bottom_indices]) + "\n\n")
+    print("Top features saved to file.")
         
 
 def pca_pipeline(pca: PCA) -> None:
