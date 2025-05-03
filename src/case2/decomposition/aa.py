@@ -14,7 +14,7 @@ sns.set_theme(style="darkgrid")
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser(
-).parent.parent.parent.parent / 'docs' / 'figures'
+).parent.parent.parent.parent / 'docs' / 'figures' / 'aa'
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
 
