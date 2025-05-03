@@ -12,9 +12,9 @@ def main():
 
     # Decomposition methods
     # run_nmf_pipeline(X, y)
-    run_ica_pipeline(X, y)
+    # run_ica_pipeline(X, y)
     # run_aa_pipeline(X, y)
-    # run_sc_pipeline(X, y)
+    run_sc_pipeline(X, y)
 
 
 if __name__ == "__main__":

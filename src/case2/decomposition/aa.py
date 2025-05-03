@@ -5,9 +5,11 @@ from sklearn.decomposition import FastICA
 from scipy.stats import kurtosis
 from typing import List, Tuple, Optional
 from sklearn.exceptions import ConvergenceWarning
+from sklearn.preprocessing import StandardScaler
 import warnings
 from pathlib import Path
 import py_pcha
+import seaborn as sns
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser(
@@ -23,7 +25,9 @@ def preprocess_for_aa(
     """
     # Impute missing values with column medians
     X_imputed = X.fillna(X.median())
-    return X_imputed
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_imputed)
+    return X_scaled+10
 
 
 def compute_aa(
@@ -48,28 +52,67 @@ def compute_aa(
     XC, S, C, SSE, varexpl = py_pcha.PCHA(X.T, noc=n_components, delta=0.1)
     X_hat = X.T @ C @ S
     L = 0.5*np.linalg.norm(X.T-X_hat)**2
-    return XC, varexpl
+    closest_archetypes = np.argmax(C, axis=1)
+    closest_archetypes = np.asarray(closest_archetypes).squeeze()
+    if closest_archetypes.ndim != 1:
+        raise ValueError(
+            f"Expected 1D array, got shape {closest_archetypes.shape}")
+    return XC, varexpl, closest_archetypes
 
 
-def plot_metric(
-    k_list: List[int],
-    metric: List[float],
-    ylabel: str,
-    title: str,
-    fname: str,
+def plot_closest_archetypes(
+    closest_archetypes: np.ndarray,
+    feature_names: List[str],
+    y: pd.DataFrame,
     save_path: Optional[Path] = None
 ) -> None:
-    """
-    Save a line plot of metric vs k.
-    """
-    fig, ax = plt.subplots()
-    ax.plot(k_list, metric, marker='o')
-    ax.set_xlabel('Number of components (k)')
-    ax.set_ylabel(ylabel)
-    ax.set_title(title)
+    # Add closest archetype column
+    df_plot = y.copy()
+    df_plot["Archetype"] = closest_archetypes
+
+    # Reshape to long format
+    df_long = df_plot.melt(id_vars="Archetype", value_vars=feature_names,
+                           var_name="Emotion", value_name="Score")
+
+    # Convert archetype to string for nicer x-axis ticks
+    df_long["Archetype"] = df_long["Archetype"].astype(str)
+
+    # Create FacetGrid
+    g = sns.FacetGrid(df_long, col="Emotion",
+                      col_wrap=3, height=4, sharey=False)
+    g.map(sns.stripplot, "Archetype", "Score",
+          jitter=True, alpha=0.7)
+
+    # Improve layout
+    for ax in g.axes.flatten():
+        ax.tick_params(axis='x', rotation=45)
+    g.fig.suptitle("Emotion Scores by Closest Archetype", y=1.02)
+    g.tight_layout()
+
+    # Show or save
+    # plt.show()
+    g.savefig(FIGURE_DIR / "emotion_scores_by_archetype_strip.png", dpi=300)
+
+
+def plot_phases_archetypes(
+    closest_archetypes: np.ndarray,
+    y: pd.DataFrame,
+) -> None:
+    # Add closest archetype column
+    df_plot = y.copy()
+    df_plot["Archetype"] = closest_archetypes
+
+    # Create the plot
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.stripplot(data=df_plot, x="Phase", y="Archetype",
+                  jitter=True, alpha=0.7, ax=ax)
+
+    # Set title and layout
+    ax.set_title("Phase by Closest Archetype", y=1.02)
     fig.tight_layout()
-    save_path = save_path or FIGURE_DIR / fname
-    fig.savefig(save_path)
+
+    # Save
+    fig.savefig(FIGURE_DIR / "phase_by_archetype.png", dpi=300)
     plt.close(fig)
 
 
@@ -107,7 +150,7 @@ def plot_archetypes(
 def run_aa_pipeline(
     X: pd.DataFrame,
     y: pd.DataFrame,
-    k_list: List[int] = list(range(2, 10)),
+    k_list: List[int] = list(range(2, 16)),
     select_k: Optional[int] = None
 ) -> List[float]:
     """
@@ -118,46 +161,64 @@ def run_aa_pipeline(
     print("Running AA pipeline...")
 
     # 1) Preprocess data
-    Xc = preprocess_for_aa(X)
-    X_np = Xc.values
+    X_np = preprocess_for_aa(X)
     # 2) Evaluate explained variance metric
     evs = []
     for k in k_list:
-        XC, varexp = compute_aa(X_np, k)
+        XC, varexp, _ = compute_aa(X_np, k)
         evs.append(varexp)
-        # 3) Plot explained variance
-    fig, ax = plt.subplots()
-    ax.plot(k_list, evs, marker='o', label='Explained Variance')
+    # 3) Plot explained variance
 
-    # Determine chosen k as the smallest k with maximal explained variance
-    max_ev = 1.0
-    eps = 5e-4
-    chosen = None
+    df = pd.DataFrame({
+        'Number of archetypes': k_list,
+        'Explained Variance': evs
+    })
     print(evs)
+    # Determine chosen k
+    max_ev = 1.0
+    eps = 5e-3
+    chosen = None
     for k_val, ev_val in zip(k_list, evs):
         if ev_val >= max_ev - eps:
             chosen = k_val
             break
-    print(f"Chosen k: {chosen}")
     if chosen is None:
         raise ValueError("No suitable k found.")
+    print(f"Chosen k: {chosen}")
 
-    ax.axvline(chosen, color='grey', linestyle='--',
-               label=f'Selected k={chosen}')
-    ax.set_xlabel('Number of archetypes')
-    ax.set_ylabel('Explained Variance')
-    ax.set_title('AA Explained Variance vs Number of Archetypes')
-    ax.legend()
-    fig.tight_layout()
+    # Plot with seaborn
+    plt.figure(figsize=(8, 6))
+    sns.lineplot(data=df, x='Number of archetypes',
+                 y='Explained Variance', marker='o', label='Explained Variance')
+
+    # Add vertical line for selected k
+    plt.axvline(chosen, color='grey', linestyle='--',
+                label=f'Selected number of archetypes = {chosen}')
+
+    # Decorations
+    plt.xlabel('Number of Archetypes')
+    plt.ylabel('Explained Variance')
+    plt.title('AA Explained Variance vs Number of Archetypes')
+    plt.legend()
+    plt.tight_layout()
+
+    # Save and close
     save_path = FIGURE_DIR / 'aa_explained_variance.png'
-    fig.savefig(save_path)
-    plt.close(fig)
+    plt.savefig(save_path, dpi=300)
+    plt.close()
 
     # Print selected k
     print(f"Selected k = {chosen} with VE = {max_ev:.4f}")
 
     # 4) Fit final ICA and visualize mixing matrix
-    XC_sel, varexp_sel = compute_aa(X_np, chosen)
-    plot_archetypes(XC_sel, list(X.columns))
+    XC_sel, varexp_sel, closest_archetype = compute_aa(X_np, chosen)
+    plot_closest_archetypes(closest_archetypes=closest_archetype,
+                            feature_names=['Frustrated', 'upset', 'hostile', 'alert', 'ashamed',
+                                           'inspired', 'nervous', 'attentive', 'afraid', 'active', 'determined'],
+                            y=y)
+    plot_archetypes(XC=XC_sel, feature_names=list(X.columns))
+
+    plot_phases_archetypes(closest_archetypes=closest_archetype,
+                           y=y)
 
     return evs
