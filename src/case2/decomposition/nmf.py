@@ -6,9 +6,14 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import NMF
 from typing import List, Tuple, Optional
 from pathlib import Path
+import seaborn as sns
+import math
+
+sns.set_theme(style="darkgrid")
+
 
 # Directory to save figures
-FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 'figures'
+FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 'figures' / 'nmf' 
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
 
@@ -111,6 +116,73 @@ def plot_components_grid(
     fig.savefig(save_path)
     plt.close(fig)
 
+def plot_nmf_subplots(
+    W: np.ndarray,
+    y: pd.DataFrame,
+    save_path: Optional[Path] = None,
+    method_name: str = "NMF"
+) -> None:
+    """
+    Plot NMF embedding (first two components) in subplots for:
+      - 'Phase'
+      - 'Puzzler'
+      - each emotion column in y
+    Uses the same style/layout as the PCA subplots.
+    """
+    # 1) Build titles dict
+    phases = np.sort(y.index.get_level_values("Phase").unique())
+    titles = {"Phase": phases}
+    for col in y.columns:
+        if col not in titles and col not in ["Individual", "Round"]:
+            titles[col] = np.sort(y[col].unique())
+
+    # 2) Grid dimensions
+    n_plots = len(titles)
+    ncols = math.ceil(math.sqrt(n_plots))
+    nrows = math.ceil(n_plots / ncols)
+
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=(7 * ncols, 7 * nrows),
+        sharex=True, sharey=True
+    )
+    axes = axes.flatten()
+
+    # 3) Scatter by each label
+    for ax, (title, unique_vals) in zip(axes, titles.items()):
+        for val in unique_vals:
+            # mask on MultiIndex or on column
+            try:
+                mask = y.index.get_level_values(title) == val
+            except KeyError:
+                mask = y[title] == val
+            idx = np.where(mask)[0]
+
+            ax.scatter(
+                W[idx, 0], W[idx, 1],
+                label=str(val),
+                alpha=0.7
+            )
+
+        # PCA‐style axes and grid
+        ax.set_xlabel("Comp 1")
+        ax.set_ylabel("Comp 2")
+        ax.axhline(0, color="grey", linestyle="--", linewidth=1)
+        ax.axvline(0, color="grey", linestyle="--", linewidth=1)
+        ax.legend()
+        ax.grid(True)
+        ax.set_title(f"{method_name} - {title}")
+
+    # 4) Disable any extra axes
+    for ax in axes[len(titles):]:
+        ax.set_visible(False)
+
+    plt.tight_layout()
+    if save_path is None:
+        save_path = FIGURE_DIR / f"{method_name.lower()}_subplots.png"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_path)
+    plt.close(fig)
 
 def run_nmf_pipeline(
     X: pd.DataFrame,
@@ -140,9 +212,19 @@ def run_nmf_pipeline(
     # 4) Plot explained variance with vertical marker
     plot_explained_variance(k_list, explained_var, chosen_k=chosen)
 
-    # 5) Bar-chart grid of components
-    _, H_sel, _ = compute_nmf(X_nonneg.values, chosen)
-    plot_components_grid(H_sel, list(X.columns))
+    # after computing W_sel, H_sel in run_nmf_pipeline...
+    W_sel, H_sel, _ = compute_nmf(X_nonneg.values, chosen)
+
+    # existing bar‐grid
+    plot_components_grid(H_sel, list(X.columns))    
+
+    # new NMF scatter‐subplots
+    print("Plotting NMF scatter subplots for Phase, Puzzler, and emotions...")
+    plot_nmf_subplots(
+        W_sel,
+        y,
+        save_path=FIGURE_DIR / "nmf_subplots.png"
+    )
 
     return None, None, errs
 
