@@ -6,11 +6,14 @@ from scipy.stats import kurtosis
 from typing import List, Tuple, Optional
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import explained_variance_score
+from sklearn.model_selection import train_test_split
 from sklearn.model_selection import KFold
 import warnings
 from pathlib import Path
 import py_pcha
 from matplotlib import cm, lines
+import seaborn as sns
+sns.set_theme(style="darkgrid")
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser(
@@ -40,7 +43,7 @@ def compute_sc(
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     model = DictionaryLearning(n_components=n_components, alpha=lambda_, transform_alpha=lambda_,
-                               max_iter=1000, transform_max_iter=1000, fit_algorithm='cd', transform_algorithm='lasso_cd')
+                               max_iter=1500, transform_max_iter=1500, fit_algorithm='cd', transform_algorithm='lasso_cd')
     H_SC = model.fit_transform(X_scaled)
     return scaler, model, H_SC
 
@@ -227,55 +230,61 @@ def run_sc_pipeline(
     Xc = preprocess_for_sc(X)
     X_np = Xc.values
     # 2) Evaluate explained variance metric
-    # evs = []
-    # k_list = [5, 10, 15, 20, 25, 30, 35, 38, 40, 42, 45, 50]
-    # alpha = 0.0001
-    # for k in k_list:
-    #     scaler, model = compute_sc(X_np, k, alpha)
-    #     X_scaled = scaler.transform(X_np)
-    #     X_transformed = model.transform(X_scaled)
-    #     X_val_recon = X_transformed @ model.components_
-    #     ev = explained_variance_score(X_scaled, X_val_recon)
-    #     evs.append(ev)
-    #     print(f"Evaluated k={k}, alpha={alpha}, EV={ev:.8f}")
 
-    # 3) Plot explained variance
+    # Grid of hyperparameters
+    alpha_list = [1e-4, 1e-3, 1e-2, 1e-1, 1]
+    k_list = [5, 10, 20, 30, 40, 50]
+    results = []
 
-    # Plot
-    # fig, ax = plt.subplots()
-    # ax.plot(k_list, evs, marker='o', label='Explained Variance')
+    # Split for validation
+    X_train, X_val = train_test_split(X_np, test_size=0.2, random_state=42)
 
-    # # Determine chosen k as the smallest k with maximal explained variance
-    # print(evs)
-    # max_ev = 1.0
-    # eps = 0.0005
-    # chosen = None
-    # for k_val, ev_val in zip(k_list, evs):
-    #     if ev_val >= max_ev - eps:
-    #         chosen = k_val
-    #         break
-    # print(f"Chosen k: {chosen}")
-    # if chosen is None:
-    #     raise ValueError("No suitable k found.")
+    for alpha in alpha_list:
+        for k in k_list:
+            scaler, model, _ = compute_sc(X_train, k, alpha)
+            X_val_scaled = scaler.transform(X_val)
 
-    # ax.axvline(chosen, color='grey', linestyle='--',
-    #            label=f'Selected k={chosen}')
-    # ax.set_xlabel('Number of Components (k)')
-    # ax.set_ylabel('Explained Variance')
-    # ax.set_title('SC Explained Variance vs Number of Components')
-    # ax.legend()
-    # fig.tight_layout()
-    # save_path = FIGURE_DIR / 'sc_nb_features_explained_variance.png'
-    # fig.savefig(save_path)
-    # plt.close(fig)
+            X_transformed = model.transform(X_val_scaled)
+            X_recon = X_transformed @ model.components_
+            ev = explained_variance_score(X_val_scaled, X_recon)
+            results.append((k, alpha, ev))
+            print(f"Alpha={alpha}, k={k}, EV={ev:.6f}")
 
-    # # Print selected k
-    # print(f"Selected k = {chosen}")
+    # Format results
+    results_df = pd.DataFrame(
+        results, columns=['noc', 'lambda', 'EV'])
+    results_df['lambda'] = results_df['lambda'].astype(float)
+    results_df['noc'] = results_df['noc'].astype(int)
+    results_df['EV'] = results_df['EV'].astype(float)
 
-    chosen = 40
-    alpha = 0.006
+    # Select best: smallest k, largest alpha that achieves near-max EV
+    eps = 1e-3
+    max_ev = results_df['EV'].max()
+    valid = results_df[results_df['EV'] >= max_ev - eps]
+    best_row = valid.sort_values(
+        ['noc', 'lambda'], ascending=[True, False]).iloc[0]
+    print(
+        f"Selected alpha={best_row['lambda']}, k={best_row.noc}, EV={best_row.EV:.5f}")
+
+    # Optional: Plot heatmap
+    fig, ax = plt.subplots()
+    heatmap_data = results_df.pivot(index='lambda', columns='noc', values='EV')
+    sns.heatmap(heatmap_data, annot=True, fmt=".3f", cmap='viridis')
+    # Mark selected point
+    best_k = int(best_row.noc)
+    best_alpha = float(best_row['lambda'])
+    ax.plot(
+        k_list.index(best_k) + 0.5,  # x-coord (column index + 0.5 for center)
+        alpha_list.index(best_alpha) + 0.5,  # y-coord
+        marker='o', color='red', markersize=10, markeredgecolor='black'
+    )
+    ax.set_title("Sparse Coding EV with lambda and number of components (noc)")
+    plt.tight_layout()
+    plt.savefig(FIGURE_DIR / "sc_elementwise_cv.png", dpi=300)
+    plt.close()
+
     # 4) Fit final SC and visualize mixing matrix
-    scaler, model, H_SC = compute_sc(X_np, chosen, alpha)
+    scaler, model, H_SC = compute_sc(X_np, best_k, best_alpha)
     # 5) Plot mixing matrix
     plot_sc_h_elements(H_SC.T, alpha)
 

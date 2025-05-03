@@ -10,6 +10,7 @@ import warnings
 from pathlib import Path
 import py_pcha
 import seaborn as sns
+sns.set_theme(style="darkgrid")
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser(
@@ -150,7 +151,7 @@ def plot_archetypes(
 def run_aa_pipeline(
     X: pd.DataFrame,
     y: pd.DataFrame,
-    k_list: List[int] = list(range(2, 16)),
+    k_list: List[int] = list(range(2, 21)),
     select_k: Optional[int] = None
 ) -> List[float]:
     """
