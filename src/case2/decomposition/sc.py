@@ -286,7 +286,7 @@ def run_sc_pipeline(
     # 4) Fit final SC and visualize mixing matrix
     scaler, model, H_SC = compute_sc(X_np, best_k, best_alpha)
     # 5) Plot mixing matrix
-    plot_sc_h_elements(H_SC.T, alpha)
+    plot_sc_h_elements(H_SC.T, best_alpha)
 
     # 6) Plot scatter of SC components colored by emotion labels
     mean_usage = np.mean(np.abs(H_SC), axis=0)
