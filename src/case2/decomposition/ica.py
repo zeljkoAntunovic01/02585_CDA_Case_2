@@ -33,6 +33,15 @@ def preprocess_for_ica(
     Xc = X_imputed - X_imputed.mean()
     return Xc
 
+# def preprocess_for_ica(X: pd.DataFrame) -> pd.DataFrame:
+#     X_imputed = X.fillna(X.median())
+#     Xc = X_imputed - X_imputed.mean()
+#     # drop constant columns
+#     zero_var = Xc.std() <= 0
+#     if zero_var.any():
+#         print("Dropping zero-variance features:", list(Xc.columns[zero_var]))
+#         Xc = Xc.loc[:, ~zero_var]
+#     return Xc
 
 def compute_ica(
     X: np.ndarray,
@@ -48,11 +57,12 @@ def compute_ica(
     S has shape (n_samples, n_components); A is (n_components, n_features).
     """
     ica = FastICA(
-        n_components=n_components,
-        whiten='unit-variance',
-        random_state=random_state,
-        max_iter=max_iter,
-        tol=tol
+        n_components=n_components,algorithm='parallel'
+        # n_components=n_components,
+        # whiten='unit-variance',
+        # random_state=random_state,
+        # max_iter=max_iter,
+        # tol=tol
     )
     # Suppress convergence warnings
     with warnings.catch_warnings():
@@ -157,21 +167,31 @@ def plot_ica_subplots(
                              figsize=(7 * ncols, 7 * nrows))
     axes = axes.flatten()
 
+    valid = np.isfinite(S[:, 0]) & np.isfinite(S[:, 1])
+
     # For each label type, plot S[:,0] vs S[:,1]
     for ax, (title, unique_values) in zip(axes, titles.items()):
+
         for val in unique_values:
-            # mask either on index or on column
+            # original mask for this category
             try:
                 mask = y.index.get_level_values(title) == val
             except KeyError:
                 mask = y[title] == val
-            idx = np.where(mask)[0]
+
+            # combine with “valid” mask to drop NaNs
+            combined = mask & valid
+            idx = np.where(combined)[0]
+            if len(idx) == 0:
+                continue
+
             ax.scatter(
                 S[idx, 0],
                 S[idx, 1],
-                label=val,
+                label=str(val),
                 alpha=0.7
             )
+        
         ax.set_xlabel("IC 1")
         ax.set_ylabel("IC 2")
         # dashed zero‐lines
@@ -222,7 +242,8 @@ def run_ica_pipeline(
     ax.plot(k_list, evs, marker='o', label='Explained Variance')
 
     # Determine chosen k as the smallest k with maximal explained variance
-    max_ev = 1.0
+    # max_ev = 1.0
+    max_ev = max(evs)
     eps = 1e-4
     chosen = None
     for k_val, ev_val in zip(k_list, evs):

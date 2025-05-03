@@ -17,28 +17,68 @@ FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
 
+# def preprocess_for_nmf(
+#     X: pd.DataFrame
+# ) -> Tuple[pd.DataFrame, pd.Series]:
+#     """
+#     Impute missing values and shift data to be non-negative.
+#     """
+#     X_nonneg = X.copy().astype(float)
+#     X_nonneg = X_nonneg.fillna(X_nonneg.median())
+#     shifts = pd.Series(index=X_nonneg.columns, dtype=float)
+#     for col in X_nonneg.columns:
+#         min_val = X_nonneg[col].min()
+#         shifts[col] = min_val
+#         if min_val < 0:
+#             X_nonneg[col] -= min_val
+#     return X_nonneg, shifts
+
 def preprocess_for_nmf(
     X: pd.DataFrame
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """
-    Impute missing values and shift data to be non-negative.
+    Impute missing values, shift data to be non-negative, and drop any zero-variance features.
+    
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Original feature matrix.
+
+    Returns
+    -------
+    X_nonneg : pd.DataFrame
+        The non-negative, imputed feature matrix with zero-variance columns removed.
+    shifts : pd.Series
+        The amount each original column was shifted (min value).
     """
+    # 1) Copy & impute
     X_nonneg = X.copy().astype(float)
     X_nonneg = X_nonneg.fillna(X_nonneg.median())
+
+    # 2) Record shifts & make non-negative
     shifts = pd.Series(index=X_nonneg.columns, dtype=float)
     for col in X_nonneg.columns:
         min_val = X_nonneg[col].min()
         shifts[col] = min_val
         if min_val < 0:
             X_nonneg[col] -= min_val
+
+    # # 3) Drop zero-variance (constant) features
+    # zero_var = X_nonneg.std(axis=0) == 0
+    # if zero_var.any():
+    #     dropped = zero_var[zero_var].index.tolist()
+    #     print(f"Dropping zero-variance features: {dropped}")
+    #     X_nonneg = X_nonneg.loc[:, ~zero_var]
+    #     shifts = shifts.loc[X_nonneg.columns]
+
     return X_nonneg, shifts
 
 
 def compute_nmf(
     X: np.ndarray,
     n_components: int,
-    init: str = 'nndsvda',
-    solver: str = 'cd',
+    init: str = 'random',
+    solver: str = 'mu',
     random_state: int = 0
 ) -> Tuple[np.ndarray, np.ndarray, float]:
     """
@@ -127,7 +167,8 @@ def plot_nmf_subplots(
       - 'Phase'
       - 'Puzzler'
       - each emotion column in y
-    Uses the same style/layout as the PCA subplots.
+    Uses the same style/layout as the PCA subplots,
+    but skips any points where W[:,0] or W[:,1] is NaN.
     """
     # 1) Build titles dict
     phases = np.sort(y.index.get_level_values("Phase").unique())
@@ -136,7 +177,10 @@ def plot_nmf_subplots(
         if col not in titles and col not in ["Individual", "Round"]:
             titles[col] = np.sort(y[col].unique())
 
-    # 2) Grid dimensions
+    # 2) Compute valid‐point mask once
+    valid = np.isfinite(W[:, 0]) & np.isfinite(W[:, 1])
+
+    # 3) Grid dimensions
     n_plots = len(titles)
     ncols = math.ceil(math.sqrt(n_plots))
     nrows = math.ceil(n_plots / ncols)
@@ -148,15 +192,19 @@ def plot_nmf_subplots(
     )
     axes = axes.flatten()
 
-    # 3) Scatter by each label
+    # 4) Scatter by each label, filtering out NaNs
     for ax, (title, unique_vals) in zip(axes, titles.items()):
         for val in unique_vals:
-            # mask on MultiIndex or on column
             try:
                 mask = y.index.get_level_values(title) == val
             except KeyError:
                 mask = y[title] == val
-            idx = np.where(mask)[0]
+
+            # combine with valid mask
+            combined = mask & valid
+            idx = np.where(combined)[0]
+            if idx.size == 0:
+                continue
 
             ax.scatter(
                 W[idx, 0], W[idx, 1],
@@ -173,7 +221,7 @@ def plot_nmf_subplots(
         ax.grid(True)
         ax.set_title(f"{method_name} - {title}")
 
-    # 4) Disable any extra axes
+    # 5) Disable any extra axes
     for ax in axes[len(titles):]:
         ax.set_visible(False)
 
@@ -183,6 +231,7 @@ def plot_nmf_subplots(
     save_path.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(save_path)
     plt.close(fig)
+
 
 def run_nmf_pipeline(
     X: pd.DataFrame,
