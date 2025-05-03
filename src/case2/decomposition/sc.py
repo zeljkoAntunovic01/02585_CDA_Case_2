@@ -14,7 +14,7 @@ from matplotlib import cm, lines
 
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser(
-).parent.parent.parent.parent / 'docs' / 'figures'
+).parent.parent.parent.parent / 'docs' / 'figures' / 'sc'
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
 
