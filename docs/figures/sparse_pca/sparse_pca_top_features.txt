@@ -28,3 +28,93 @@ EDA_TD_P_Peaks, EDA_TD_T_Slope_mean, EDA_TD_T_Slope
 Bottom 3 features for component 5:
 EDA_TD_P_Kurtosis, EDA_TD_P_Skew, EDA_TD_P_ReT
 
+Top 3 features for component 1:
+EDA_TD_P_Median, EDA_TD_P_AUC, EDA_TD_P_Mean
+
+Bottom 3 features for component 1:
+EDA_TD_P_Slope_min, EDA_TD_T_Slope_min, EDA_TD_P_Skew
+
+Top 3 features for component 2:
+HR_TD_Median, HR_TD_Max, HR_TD_Mean
+
+Bottom 3 features for component 2:
+HR_TD_Slope_min, TEMP_TD_Slope_min, EDA_TD_P_Median
+
+Top 3 features for component 3:
+EDA_TD_T_Median, EDA_TD_T_AUC, EDA_TD_T_Mean
+
+Bottom 3 features for component 3:
+EDA_TD_T_Slope_min, EDA_TD_P_Slope_min, EDA_TD_T_Skew
+
+Top 3 features for component 4:
+TEMP_TD_Slope_max, TEMP_TD_Slope_mean, TEMP_TD_Slope
+
+Bottom 3 features for component 4:
+HR_TD_Slope_mean, HR_TD_Slope, HR_TD_Slope_min
+
+Top 3 features for component 5:
+EDA_TD_P_Peaks, EDA_TD_T_Slope_mean, EDA_TD_T_Slope
+
+Bottom 3 features for component 5:
+EDA_TD_P_Kurtosis, EDA_TD_P_Skew, EDA_TD_P_ReT
+
+Top 3 features for component 1:
+EDA_TD_P_Median, EDA_TD_P_AUC, EDA_TD_P_Mean
+
+Bottom 3 features for component 1:
+EDA_TD_P_Slope_min, EDA_TD_T_Slope_min, EDA_TD_P_Skew
+
+Top 3 features for component 2:
+HR_TD_Min, HR_TD_Median, HR_TD_Mean
+
+Bottom 3 features for component 2:
+HR_TD_Skew, EDA_TD_P_Median, EDA_TD_P_Max
+
+Top 3 features for component 3:
+EDA_TD_T_Median, EDA_TD_T_AUC, EDA_TD_T_Mean
+
+Bottom 3 features for component 3:
+EDA_TD_P_Slope_min, EDA_TD_T_Slope_min, HR_TD_Mean
+
+Top 3 features for component 4:
+HR_TD_Slope_max, HR_TD_Slope, HR_TD_Slope_mean
+
+Bottom 3 features for component 4:
+HR_TD_Skew, HR_TD_Kurtosis, HR_TD_Mean
+
+Top 3 features for component 5:
+EDA_TD_T_Slope, EDA_TD_T_Slope_mean, EDA_TD_P_Peaks
+
+Bottom 3 features for component 5:
+EDA_TD_P_Kurtosis, EDA_TD_P_Skew, EDA_TD_P_ReT
+
+Top 3 features for component 6:
+TEMP_TD_Slope_min, TEMP_TD_Slope, TEMP_TD_Slope_mean
+
+Bottom 3 features for component 6:
+TEMP_TD_Kurtosis, HR_TD_Slope_max, HR_TD_Mean
+
+Top 3 features for component 7:
+TEMP_TD_Max, TEMP_TD_Median, TEMP_TD_Mean
+
+Bottom 3 features for component 7:
+EDA_TD_P_Kurtosis, EDA_TD_P_Slope_min, HR_TD_Mean
+
+Top 3 features for component 8:
+EDA_TD_P_ReT, EDA_TD_T_Slope_max, EDA_TD_T_Kurtosis
+
+Bottom 3 features for component 8:
+EDA_TD_T_Skew, EDA_TD_T_Slope_min, HR_TD_Slope_min
+
+Top 3 features for component 9:
+EDA_TD_P_std, EDA_TD_P_ReT, TEMP_TD_Slope_min
+
+Bottom 3 features for component 9:
+TEMP_TD_std, TEMP_TD_Slope_max, TEMP_TD_AUC
+
+Top 3 features for component 10:
+HR_TD_Max, HR_TD_Slope_max, HR_TD_std
+
+Bottom 3 features for component 10:
+HR_TD_Slope_min, HR_TD_Min, EDA_TD_P_Median
+
