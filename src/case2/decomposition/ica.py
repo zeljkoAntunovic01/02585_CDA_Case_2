@@ -33,16 +33,6 @@ def preprocess_for_ica(
     Xc = X_imputed - X_imputed.mean()
     return Xc
 
-# def preprocess_for_ica(X: pd.DataFrame) -> pd.DataFrame:
-#     X_imputed = X.fillna(X.median())
-#     Xc = X_imputed - X_imputed.mean()
-#     # drop constant columns
-#     zero_var = Xc.std() <= 0
-#     if zero_var.any():
-#         print("Dropping zero-variance features:", list(Xc.columns[zero_var]))
-#         Xc = Xc.loc[:, ~zero_var]
-#     return Xc
-
 def compute_ica(
     X: np.ndarray,
     n_components: int,

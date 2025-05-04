@@ -16,23 +16,6 @@ sns.set_theme(style="darkgrid")
 FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 'figures' / 'nmf' 
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
-
-# def preprocess_for_nmf(
-#     X: pd.DataFrame
-# ) -> Tuple[pd.DataFrame, pd.Series]:
-#     """
-#     Impute missing values and shift data to be non-negative.
-#     """
-#     X_nonneg = X.copy().astype(float)
-#     X_nonneg = X_nonneg.fillna(X_nonneg.median())
-#     shifts = pd.Series(index=X_nonneg.columns, dtype=float)
-#     for col in X_nonneg.columns:
-#         min_val = X_nonneg[col].min()
-#         shifts[col] = min_val
-#         if min_val < 0:
-#             X_nonneg[col] -= min_val
-#     return X_nonneg, shifts
-
 def preprocess_for_nmf(
     X: pd.DataFrame
 ) -> Tuple[pd.DataFrame, pd.Series]:
@@ -62,15 +45,6 @@ def preprocess_for_nmf(
         shifts[col] = min_val
         if min_val < 0:
             X_nonneg[col] -= min_val
-
-    # # 3) Drop zero-variance (constant) features
-    # zero_var = X_nonneg.std(axis=0) == 0
-    # if zero_var.any():
-    #     dropped = zero_var[zero_var].index.tolist()
-    #     print(f"Dropping zero-variance features: {dropped}")
-    #     X_nonneg = X_nonneg.loc[:, ~zero_var]
-    #     shifts = shifts.loc[X_nonneg.columns]
-
     return X_nonneg, shifts
 
 

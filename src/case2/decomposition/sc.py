@@ -12,7 +12,15 @@ import warnings
 from pathlib import Path
 import py_pcha
 from matplotlib import cm, lines
+import math
 import seaborn as sns
+
+import warnings
+from sklearn.exceptions import ConvergenceWarning
+
+with warnings.catch_warnings():
+    warnings.filterwarnings("ignore", category=ConvergenceWarning)
+    
 sns.set_theme(style="darkgrid")
 
 # Directory to save figures
@@ -213,6 +221,79 @@ def plot_sc_scatter_phase(
     fig.savefig(save_path)
     plt.close(fig)
 
+def plot_sc_subplots(
+    S1: np.ndarray,
+    S2: np.ndarray,
+    y: pd.DataFrame,
+    save_path: Optional[Path] = None,
+    method_name: str = "SC"
+) -> None:
+    """
+    Plot SC embedding (first two learned components) in subplots for:
+      - 'Phase'
+      - 'Puzzler'
+      - each emotion column in y
+    Uses the same PCA‐style grid (7″×7″ per subplot, dashed zero‐lines, grid)
+    with discrete categories per label.
+    """
+    # 1) Build titles dict
+    phases = np.sort(y.index.get_level_values("Phase").unique())
+    titles = {"Phase": phases}
+    for col in y.columns:
+        if col not in titles:
+            titles[col] = np.sort(y[col].unique())
+
+    # 2) Grid dimensions
+    n_plots = len(titles)
+    ncols = math.ceil(math.sqrt(n_plots))
+    nrows = math.ceil(n_plots / ncols)
+
+    fig, axes = plt.subplots(
+        nrows, ncols,
+        figsize=(7 * ncols, 7 * nrows),
+        sharex=True, sharey=True
+    )
+    axes = axes.flatten()
+
+    # 3) Plot each category
+    for ax, (title, unique_vals) in zip(axes, titles.items()):
+        for val in unique_vals:
+            # mask by phase (index) or column
+            try:
+                mask = y.index.get_level_values(title) == val
+            except KeyError:
+                mask = y[title] == val
+
+            idx = np.where(mask)[0]
+            if idx.size == 0:
+                continue
+
+            ax.scatter(
+                S1[idx], S2[idx],
+                label=str(val),
+                alpha=0.7
+            )
+
+        # style like PCA/ICA
+        ax.axhline(0, color="grey", linestyle="--", linewidth=1)
+        ax.axvline(0, color="grey", linestyle="--", linewidth=1)
+        ax.set_xlabel("SC 1")
+        ax.set_ylabel("SC 2")
+        ax.set_title(f"{method_name} – {title}")
+        ax.grid(True)
+        ax.legend(title=title, loc="best", frameon=False)
+
+    # 4) Hide any extra axes
+    for extra_ax in axes[len(titles):]:
+        extra_ax.set_visible(False)
+
+    plt.tight_layout()
+    if save_path is None:
+        save_path = FIGURE_DIR / f"{method_name.lower()}_subplots.png"
+    save_path.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(save_path, dpi=300)
+    plt.close(fig)
+
 
 def run_sc_pipeline(
     X: pd.DataFrame,
@@ -248,7 +329,7 @@ def run_sc_pipeline(
             X_recon = X_transformed @ model.components_
             ev = explained_variance_score(X_val_scaled, X_recon)
             results.append((k, alpha, ev))
-            print(f"Alpha={alpha}, k={k}, EV={ev:.6f}")
+            # print(f"Alpha={alpha}, k={k}, EV={ev:.6f}")
 
     # Format results
     results_df = pd.DataFrame(
@@ -266,22 +347,46 @@ def run_sc_pipeline(
     print(
         f"Selected alpha={best_row['lambda']}, k={best_row.noc}, EV={best_row.EV:.5f}")
 
-    # Optional: Plot heatmap
-    fig, ax = plt.subplots()
+    # Optional: Plot heatmap (styled to match other figures)
+    fig, ax = plt.subplots(figsize=(8, 6))
+
+    # pivot the DataFrame
     heatmap_data = results_df.pivot(index='lambda', columns='noc', values='EV')
-    sns.heatmap(heatmap_data, annot=True, fmt=".3f", cmap='viridis')
-    # Mark selected point
+
+    # draw a square, annotated heatmap with a labeled colorbar
+    sns.heatmap(
+        heatmap_data,
+        annot=True,
+        fmt=".3f",
+        cmap="viridis",
+        cbar_kws={"label": "Explained Variance"},
+        linewidths=0.5,
+        linecolor="white",
+        square=True,
+        ax=ax
+    )
+
+    # invert y-axis so that the smallest lambda appears at the bottom
+    ax.invert_yaxis()
+
+    # mark the selected (best_k, best_alpha) point with a large hollow red circle
     best_k = int(best_row.noc)
-    best_alpha = float(best_row['lambda'])
+    best_alpha = float(best_row["lambda"])
+
     ax.plot(
         k_list.index(best_k) + 0.5,  # x-coord (column index + 0.5 for center)
         alpha_list.index(best_alpha) + 0.5,  # y-coord
-        marker='o', color='red', markersize=10, markeredgecolor='black'
+        marker='o', color='lavender', markersize=40, markeredgecolor='red'
     )
-    ax.set_title("Sparse Coding EV with lambda and number of components (noc)")
+
+    # axis labels & title to match style
+    ax.set_xlabel("Number of Components (k)")
+    ax.set_ylabel("Lambda")
+    ax.set_title("Sparse Coding EV – CV Results")
+
     plt.tight_layout()
     plt.savefig(FIGURE_DIR / "sc_elementwise_cv.png", dpi=300)
-    plt.close()
+    plt.close(fig)
 
     # 4) Fit final SC and visualize mixing matrix
     scaler, model, H_SC = compute_sc(X_np, best_k, best_alpha)
@@ -307,3 +412,13 @@ def run_sc_pipeline(
         phases=phases
     )
     # return evs
+
+        # 8) Combined SC subplots for Phase, Puzzler, and all emotions
+    print("Plotting SC subplots for Phase, Puzzler, and emotions...")
+    plot_sc_subplots(
+        S1=H_SC[:, top_atoms[0]],
+        S2=H_SC[:, top_atoms[1]],
+        y=y,
+        save_path=FIGURE_DIR / "sc_subplots.png"
+    )
+
