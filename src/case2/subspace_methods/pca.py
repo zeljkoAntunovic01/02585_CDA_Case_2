@@ -70,8 +70,7 @@ def plot_explained_variance(pca: PCA) -> None:
     plt.xlabel("Principal Component")
     plt.ylabel("Explained Variance Ratio")
     plt.xticks(range(1, n_components + 1))
-    plt.savefig(
-        FIGURE_DIR / "pca" /"explained_variance_ratio.png")
+    plt.savefig(FIGURE_DIR / "pca" / "explained_variance_ratio.png")
 
 
 def scree_plot(X: np.ndarray, pca: PCA) -> None:
@@ -118,7 +117,7 @@ def scree_plot(X: np.ndarray, pca: PCA) -> None:
     plt.xticks(range(1, n_components + 1))
     plt.legend()
     plt.savefig(
-        FIGURE_DIR / "pca" /"scree_plot.png",
+        FIGURE_DIR / "pca" / "scree_plot.png",
     )
 
 
@@ -147,13 +146,11 @@ def pca_correlation_matrix(X: np.ndarray, pca: PCA) -> None:
     if isinstance(pca, SparsePCA):
         plt.suptitle("Sparse PCA Correlation Matrices")
         plt.savefig(
-            FIGURE_DIR / "sparse_pca" /"sparse_pca_correlation_matrix.png",
+            FIGURE_DIR / "sparse_pca" / "sparse_pca_correlation_matrix.png",
         )
     else:
         plt.suptitle("PCA Correlation Matrices")
-        plt.savefig(
-            FIGURE_DIR / "pca" / "pca_correlation_matrix.png"
-        )
+        plt.savefig(FIGURE_DIR / "pca" / "pca_correlation_matrix.png")
 
 
 def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
@@ -180,6 +177,7 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
         if column not in titles:
             titles[column] = np.sort(data[column].unique())
 
+
     # Determine grid dimensions using a near-square layout
     n_plots = len(titles)
     ncols = math.ceil(math.sqrt(n_plots))
@@ -192,16 +190,25 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
 
     # Iterate over each title and plot
     for ax, (title, unique_values) in zip(axes, titles.items()):
+        # Determine if values need rescaling
+        shift = 0 in unique_values
+
         for value in unique_values:
             try:
                 mask = data.index.get_level_values(title) == value
             except KeyError:
-                mask = data[title] == value
+                if value == -1:
+                    continue
+                else:
+                    mask = data[title] == value
+
             indices = np.where(mask)[0]
+            label_val = value + 1 if shift else value
+
             ax.scatter(
                 X_pca[indices, 0],
                 X_pca[indices, 1],
-                label=value,
+                label=label_val,
                 alpha=0.7,
             )
         ax.set_xlabel("PC 1")
@@ -216,21 +223,20 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
             ax.set_title(f"PCA - {title}")
 
     # Turn off any extra axes
-    for ax in axes[len(titles):]:
+    for ax in axes[len(titles) :]:
         ax.set_visible(False)
 
     plt.tight_layout()
     if isinstance(pca, SparsePCA):
-        plt.savefig(FIGURE_DIR / "sparse_pca" / "pca_subplots.png")
+        plt.savefig(FIGURE_DIR / "sparse_pca" / "sparse_pca_subplots.png")
     else:
         plt.savefig(FIGURE_DIR / "pca" / "pca_subplots.png")
-
 
 
 def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -> None:
     """
     Plot the features against the loadings of the PCA components.
-    
+
     Parameters
     ----------
     pca : PCA
@@ -245,15 +251,21 @@ def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -
     feature_indices = [feature_names.get_loc(feature) for feature in features]
     feature_names = [feature_names[i] for i in feature_indices]
 
-
     plt.figure(figsize=(8, 6))
-    plt.axhline(0, color='grey', linestyle='--', linewidth=1)
-    plt.axvline(0, color='grey', linestyle='--', linewidth=1)
+    plt.axhline(0, color="grey", linestyle="--", linewidth=1)
+    plt.axvline(0, color="grey", linestyle="--", linewidth=1)
 
     # Plot the loadings as vectors
     for idx, varname in zip(feature_indices, feature_names):
-        plt.plot(loadings[idx, 0], loadings[idx, 1], 'o', color='r')
-        plt.text(loadings[idx, 0], loadings[idx, 1] + 0.025, varname, color='b', ha='center', va='center')
+        plt.plot(loadings[idx, 0], loadings[idx, 1], "o", color="r")
+        plt.text(
+            loadings[idx, 0],
+            loadings[idx, 1] + 0.025,
+            varname,
+            color="b",
+            ha="center",
+            va="center",
+        )
 
     plt.xlabel("PC 1")
     plt.ylabel("PC 2")
@@ -262,12 +274,14 @@ def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -
     plt.tight_layout()
     if isinstance(pca, SparsePCA):
         plt.savefig(
-            FIGURE_DIR / "sparse_pca" /"sparse_pca_loadings.png",
+            FIGURE_DIR / "sparse_pca" / "sparse_pca_loadings.png",
         )
     else:
         plt.savefig(
-            FIGURE_DIR / "pca" /"pca_loadings.png",
+            FIGURE_DIR / "pca" / "pca_loadings.png",
         )
+
+
 def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
     """
     Print the top features for each PCA component.
@@ -290,7 +304,9 @@ def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
         print()
         # Save the top features to a file
         if isinstance(pca, SparsePCA):
-            with open(FIGURE_DIR / "sparse_pca" / "sparse_pca_top_features.txt", "a") as f:
+            with open(
+                FIGURE_DIR / "sparse_pca" / "sparse_pca_top_features.txt", "a"
+            ) as f:
                 f.write(f"Top {n_features} features for component {i + 1}:\n")
                 f.write(", ".join([features[idx] for idx in top_indices]) + "\n\n")
                 f.write(f"Bottom {n_features} features for component {i + 1}:\n")
@@ -302,7 +318,7 @@ def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
                 f.write(f"Bottom {n_features} features for component {i + 1}:\n")
                 f.write(", ".join([features[idx] for idx in bottom_indices]) + "\n\n")
     print("Top features saved to file.")
-        
+
 
 def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
     """
@@ -319,8 +335,6 @@ def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
     """
     # Preprocess data
     X_preprocessed, y_preprocessed = preprocess_pca_data(X, y)
-
-    
 
     # Fit PCA
     pca.fit(X_preprocessed)
@@ -352,7 +366,7 @@ def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
 
 def run_pca_pipeline(X: pd.DataFrame, y: pd.DataFrame):
     # Example usage
-    pca = PCA(n_components=5)
+    pca = PCA(n_components=10)
     pca_pipeline(pca, X, y)
-    sparse_pca = SparsePCA(n_components=5, alpha=0.1, ridge_alpha=0.1)
+    sparse_pca = SparsePCA(n_components=10, alpha=0.1, ridge_alpha=0.1)
     pca_pipeline(sparse_pca, X, y)
