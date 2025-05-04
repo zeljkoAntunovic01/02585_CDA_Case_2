@@ -9,15 +9,15 @@ from subspace_methods.som import som_pipeline
 def main():
     # Loading the data
     hr_df, X, y = run_data_loading()
-    """
+
     # Decomposition methods
     run_nmf_pipeline(X, y)
     run_ica_pipeline(X, y)
     run_aa_pipeline(X, y)
-    run_sc_pipeline(X, y) """
+    run_sc_pipeline(X, y)
     
     # Subspace methods
-    som_pipeline(X, y)
+    som_pipeline(hr_df, X, y)
 
 
 if __name__ == "__main__":

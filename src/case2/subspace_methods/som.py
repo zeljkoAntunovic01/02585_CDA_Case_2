@@ -289,7 +289,7 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
     plt.savefig(FIG_DIR / "som_phase_trajectories.png")
     plt.close()
 
-def som_pipeline(X_df, y_df):
+def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
     """
     Main pipeline for SOM analysis.
     1. Load and preprocess data.
@@ -314,7 +314,7 @@ def som_pipeline(X_df, y_df):
     os.makedirs(FIG_DIR / "phase_hitmaps", exist_ok=True)
     
     # U-Matrix
-    #plot_u_matrix(som)
+    plot_u_matrix(som)
 
     # Visualize label heatmaps and scatter maps for each emotion label
     emotions = [
@@ -326,7 +326,7 @@ def som_pipeline(X_df, y_df):
             plot_label_heatmaps(som, X_scaled.to_numpy(), y_processed, emotion)
             plot_emotion_scatter(som, X_scaled.to_numpy(), y_processed[emotion], emotion)
 
-    """  # Phase scatter: Where do phases land on the SOM?
+    # Phase scatter: Where do phases land on the SOM?
     plot_bmu_scatter_by_phase(som, X_df, y_df, df)
 
     # Phase-wise hit maps
@@ -337,4 +337,3 @@ def som_pipeline(X_df, y_df):
 
     # Plot trajectories for individuals
     plot_phase_trajectories(som, X_scaled, df, max_individuals=3)
-    """
