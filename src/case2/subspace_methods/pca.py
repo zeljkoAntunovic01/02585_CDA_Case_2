@@ -5,12 +5,10 @@ from sklearn.decomposition import PCA, SparsePCA
 import pandas as pd
 import seaborn as sns
 import math
-from data_loader import load_data
 
 sns.set(style="darkgrid")
 
-DATA_DIR = Path(__file__).resolve().parent.parent.parent / "data"
-FIGURE_DIR = Path(__file__).resolve().parent.parent.parent / "docs" / "figures"
+FIGURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "figures"
 
 
 def preprocess_pca_data(X: np.ndarray, y: np.ndarray) -> tuple:
@@ -306,7 +304,7 @@ def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
     print("Top features saved to file.")
         
 
-def pca_pipeline(pca: PCA) -> None:
+def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
     """
     Run the PCA pipeline: load data, preprocess, fit PCA, and plot results.
 
@@ -314,10 +312,11 @@ def pca_pipeline(pca: PCA) -> None:
     ----------
     pca : SparsePCA or PCA
         PCA object to use for the analysis.
+    X : pd.DataFrame
+        Input data for PCA.
+    y : pd.DataFrame
+        Labels/responses matrix.
     """
-    # Load data
-    _, X, y = load_data()
-
     # Preprocess data
     X_preprocessed, y_preprocessed = preprocess_pca_data(X, y)
 
@@ -351,9 +350,9 @@ def pca_pipeline(pca: PCA) -> None:
     print_top_features(pca, X.columns, n_features=3)
 
 
-if __name__ == "__main__":
+def run_pca_pipeline(X: pd.DataFrame, y: pd.DataFrame):
     # Example usage
     pca = PCA(n_components=5)
-    pca_pipeline(pca)
+    pca_pipeline(pca, X, y)
     sparse_pca = SparsePCA(n_components=5, alpha=0.1, ridge_alpha=0.1)
-    pca_pipeline(sparse_pca)
+    pca_pipeline(sparse_pca, X, y)

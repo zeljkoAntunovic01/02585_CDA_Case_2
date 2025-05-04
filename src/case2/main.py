@@ -5,6 +5,7 @@ from decomposition.ica import run_ica_pipeline
 from decomposition.aa import run_aa_pipeline
 from decomposition.sc import run_sc_pipeline
 from subspace_methods.som import som_pipeline
+from subspace_methods.pca import run_pca_pipeline
 
 def main():
     # Loading the data
@@ -18,6 +19,7 @@ def main():
     
     # Subspace methods
     som_pipeline(hr_df, X, y)
+    run_pca_pipeline(X, y)
 
 
 if __name__ == "__main__":
