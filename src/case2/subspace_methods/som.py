@@ -3,14 +3,13 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from minisom import MiniSom
 from pathlib import Path
-from data_loader import load_data
 from collections import defaultdict
 import seaborn as sns
 from matplotlib.cm import get_cmap
 import os
 
 sns.set_theme(style="darkgrid")
-FIG_DIR = Path(__file__).parent.parent.parent / "docs" / "figures" / "som"
+FIG_DIR = Path(__file__).parent.parent.parent.parent / "docs" / "figures" / "som"
 
 def preprocess_som_data(X: pd.DataFrame, y: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
@@ -122,8 +121,11 @@ def plot_label_heatmaps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: s
 
     label_map = defaultdict(list)
     for i, x in enumerate(X):
+        val = int(y.iloc[i][emotion])
+        if val in [-1, 0]:  # skip invalid labels
+            continue
         winner = som.winner(x)
-        label_map[winner].append(y.iloc[i][emotion])
+        label_map[winner].append(val)
 
     x_dim, y_dim, _ = som.get_weights().shape
     averaged_map = np.zeros((x_dim, y_dim))
@@ -150,6 +152,12 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     """
     plt.figure(figsize=(10, 10))
 
+    # Filter out invalid emotion values
+    y = y.astype(float)  # Optional: ensure consistency
+    mask = ~((y == 0.0) | (y == -1.0))
+    X_filtered = X[mask.values]
+    y_filtered = y[mask]
+
     unique_vals = sorted(y.unique())
     val_min, val_max = min(unique_vals), max(unique_vals)
     cmap = get_cmap("tab10" if val_max <= 10 else "tab20")
@@ -157,7 +165,7 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     # Track added labels to prevent duplicate legends
     added_labels = set()
 
-    for x_vec, val in zip(X, y):
+    for x_vec, val in zip(X_filtered, y_filtered):
         bmu = som.winner(x_vec)
         jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
         jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
@@ -281,7 +289,7 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
     plt.savefig(FIG_DIR / "som_phase_trajectories.png")
     plt.close()
 
-def som_pipeline():
+def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
     """
     Main pipeline for SOM analysis.
     1. Load and preprocess data.
@@ -293,8 +301,7 @@ def som_pipeline():
          - Phase-wise hit maps
          - Plot trajectories for individuals
      """
-    # Fetch and preprocess data
-    df, X_df, y_df = load_data()
+    # Preprocess data
     X_scaled, y_processed = preprocess_som_data(X_df, y_df)
 
     # Train SOM

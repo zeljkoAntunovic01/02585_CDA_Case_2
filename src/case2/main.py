@@ -4,7 +4,7 @@ from decomposition.nmf import run_nmf_pipeline
 from decomposition.ica import run_ica_pipeline
 from decomposition.aa import run_aa_pipeline
 from decomposition.sc import run_sc_pipeline
-from som import som_pipeline
+from subspace_methods.som import som_pipeline
 
 def main():
     # Loading the data
@@ -17,7 +17,7 @@ def main():
     run_sc_pipeline(X, y)
     
     # Subspace methods
-    som_pipeline()
+    som_pipeline(hr_df, X, y)
 
 
 if __name__ == "__main__":
