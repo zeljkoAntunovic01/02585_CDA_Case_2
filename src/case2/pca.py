@@ -4,7 +4,7 @@ from pathlib import Path
 from sklearn.decomposition import PCA, SparsePCA
 import pandas as pd
 import seaborn as sns
-
+import math
 from data_loader import load_data
 
 sns.set(style="darkgrid")
@@ -158,7 +158,7 @@ def pca_correlation_matrix(X: np.ndarray, pca: PCA) -> None:
         )
 
 
-def plot_pca(X: np.ndarray, pca: PCA) -> None:
+def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
     """
     Plot the PCA results, coloring points by 'Phase'.
 
@@ -166,55 +166,67 @@ def plot_pca(X: np.ndarray, pca: PCA) -> None:
     ----------
     X : np.ndarray
         Input data for PCA.
+    y : np.ndarray
+        Labels/responses matrix.
     pca : PCA
         Fitted PCA object.
     """
     # Transform the data
     X_pca = pca.transform(X)
+    data = pd.concat([pd.DataFrame(X), pd.DataFrame(y)], axis=1)
 
-    # Extract unique values
-    phases = np.sort(X.index.get_level_values("Phase").unique())
-    frustrations = np.sort(X["Frustrated"].unique())
-    determined = np.sort(X["determined"].unique())
+    # Extract unique values for different categories
+    phases = np.sort(data.index.get_level_values("Phase").unique())
+    titles = {"Phase": phases}
+    for column in y.columns:
+        if column not in titles:
+            titles[column] = np.sort(data[column].unique())
 
-    titles = {"Phase": phases, "Frustrated": frustrations, "determined": determined}
+    # Determine grid dimensions using a near-square layout
+    n_plots = len(titles)
+    ncols = math.ceil(math.sqrt(n_plots))
+    nrows = math.ceil(n_plots / ncols)
 
-    for title, values in titles.items():
+    # Create subplots with each subplot sized ~7x7 inches
+    fig, axes = plt.subplots(nrows=nrows, ncols=ncols, figsize=(7 * ncols, 7 * nrows))
+    # Flatten the axes array for easy iteration and in case some subplots remain unused
+    axes = axes.flatten()
 
-        print(f"{title}: {values}")
-
-        colors = sns.color_palette("deep", len(values))
-        color_mapping = {
-            value: colors[i % len(colors)] for i, value in enumerate(values)}
-        
-        plt.figure(figsize=(8, 6))
-        for unique in values:
-            try: 
-                mask = X[title] == unique
-
+    # Iterate over each title and plot
+    for ax, (title, unique_values) in zip(axes, titles.items()):
+        for value in unique_values:
+            try:
+                mask = data.index.get_level_values(title) == value
             except KeyError:
-                # If the title is not in the DataFrame, use index level
-                mask = X.index.get_level_values("Phase") == unique
-            
-            plt.scatter(
-                X_pca[mask, 0],
-                X_pca[mask, 1],
-                label=unique,
-                alpha=0.5,
-                color=color_mapping[unique],)
-        plt.xlabel("Principal Component 1")
-        plt.ylabel("Principal Component 2")
-        plt.legend(title=title)
+                mask = data[title] == value
+            indices = np.where(mask)[0]
+            ax.scatter(
+                X_pca[indices, 0],
+                X_pca[indices, 1],
+                label=value,
+                alpha=0.7,
+            )
+        ax.set_xlabel("PC 1")
+        ax.set_ylabel("PC 2")
+        ax.axhline(0, color="grey", linestyle="--", linewidth=1)
+        ax.axvline(0, color="grey", linestyle="--", linewidth=1)
+        ax.legend()
+        ax.grid(True)
         if isinstance(pca, SparsePCA):
-            plt.title(f"Sparse PCA - {title}")
-            plt.savefig(
-                FIGURE_DIR / "sparse_pca" / f"sparse_pca_{title}.png",
-            )
+            ax.set_title(f"Sparse PCA - {title}")
         else:
-            plt.title(f"PCA - {title}")
-            plt.savefig(
-                FIGURE_DIR / "pca" / f"pca_{title}.png",
-            )
+            ax.set_title(f"PCA - {title}")
+
+    # Turn off any extra axes
+    for ax in axes[len(titles):]:
+        ax.set_visible(False)
+
+    plt.tight_layout()
+    if isinstance(pca, SparsePCA):
+        plt.savefig(FIGURE_DIR / "sparse_pca" / "pca_subplots.png")
+    else:
+        plt.savefig(FIGURE_DIR / "pca" / "pca_subplots.png")
+
 
 
 def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -> None:
@@ -258,7 +270,41 @@ def plot_features_against_loadings(data: np.ndarray, features: list, pca: PCA) -
         plt.savefig(
             FIGURE_DIR / "pca" /"pca_loadings.png",
         )
-    
+def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
+    """
+    Print the top features for each PCA component.
+
+    Parameters
+    ----------
+    pca : PCA
+        Fitted PCA object.
+    n_features : int, optional
+        Number of top features to print for each component, by default 10.
+    """
+    loadings = pca.components_
+    for i in range(loadings.shape[0]):
+        top_indices = np.argsort(loadings[i])[-n_features:]
+        bottom_indices = np.argsort(loadings[i])[:n_features]
+        print(f"Top {n_features} features for component {i + 1}:")
+        print(", ".join([features[idx] for idx in top_indices]))
+        print(f"Bottom {n_features} features for component {i + 1}:")
+        print(", ".join([features[idx] for idx in bottom_indices]))
+        print()
+        # Save the top features to a file
+        if isinstance(pca, SparsePCA):
+            with open(FIGURE_DIR / "sparse_pca" / "sparse_pca_top_features.txt", "a") as f:
+                f.write(f"Top {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in top_indices]) + "\n\n")
+                f.write(f"Bottom {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in bottom_indices]) + "\n\n")
+        else:
+            with open(FIGURE_DIR / "pca" / "pca_top_features_component.txt", "a") as f:
+                f.write(f"Top {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in top_indices]) + "\n\n")
+                f.write(f"Bottom {n_features} features for component {i + 1}:\n")
+                f.write(", ".join([features[idx] for idx in bottom_indices]) + "\n\n")
+    print("Top features saved to file.")
+        
 
 def pca_pipeline(pca: PCA) -> None:
     """
@@ -275,37 +321,39 @@ def pca_pipeline(pca: PCA) -> None:
     # Preprocess data
     X_preprocessed, y_preprocessed = preprocess_pca_data(X, y)
 
-    hr_preprocessed = pd.concat([X_preprocessed, y_preprocessed], axis=1)
+    
 
     # Fit PCA
-    pca.fit(hr_preprocessed)
+    pca.fit(X_preprocessed)
 
     if isinstance(pca, SparsePCA):
         print("Sparse PCA")
 
     else:
         print("PCA")
-
         # Plot explained variance
         plot_explained_variance(pca)
 
         # Scree plot
-        scree_plot(hr_preprocessed, pca)
+        scree_plot(X_preprocessed, pca)
 
     # Correlation matrix
-    pca_correlation_matrix(hr_preprocessed, pca)
+    pca_correlation_matrix(X_preprocessed, pca)
 
     # Plot PCA
-    plot_pca(hr_preprocessed, pca)
+    plot_pca(X_preprocessed, y_preprocessed, pca)
 
-    # Plot PCA loadings
-    features = y.columns.drop(["Cohort", "Puzzler"])
-    plot_features_against_loadings(hr_preprocessed, features, pca)
+    # # Plot PCA loadings
+    features = X.columns[::8]
+    plot_features_against_loadings(X_preprocessed, features, pca)
+
+    # Print top features
+    print_top_features(pca, X.columns, n_features=3)
 
 
 if __name__ == "__main__":
     # Example usage
-    pca = PCA(n_components=10)
+    pca = PCA(n_components=5)
     pca_pipeline(pca)
-    sparse_pca = SparsePCA(n_components=10)
+    sparse_pca = SparsePCA(n_components=5, alpha=0.1, ridge_alpha=0.1)
     pca_pipeline(sparse_pca)
