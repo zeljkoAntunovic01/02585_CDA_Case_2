@@ -112,17 +112,16 @@ def plot_u_matrix(som: MiniSom):
     plt.savefig(FIG_DIR / "som_u_matrix.png")
     plt.close()
 
-def plot_label_heatmaps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: str):
+def plot_emotion_heatmaps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: str):
     """
-    Plot a heatmap of the average label values for each neuron in the SOM.
-    Each neuron is represented by a grid cell, and the color intensity indicates the average value of the label for that neuron.
+    Plot a heatmap of the average emotion label values for each neuron in the SOM.
     """
     assert emotion in y.columns, f"{emotion} not found in label columns."
 
     label_map = defaultdict(list)
     for i, x in enumerate(X):
         val = int(y.iloc[i][emotion])
-        if val in [-1, 0]:  # skip invalid labels
+        if val in [-1]:  # skip invalid labels
             continue
         winner = som.winner(x)
         label_map[winner].append(val)
@@ -144,7 +143,7 @@ def plot_label_heatmaps(som: MiniSom, X: np.ndarray, y: pd.DataFrame, emotion: s
     plt.savefig(FIG_DIR / "label_heatmaps" /f"som_label_heatmap_{emotion}.png")
     plt.close()
 
-def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str):
+def plot_label_scatter(som: MiniSom, X: np.ndarray, y: pd.DataFrame, label: str):
     """
     Plot emotion values on SOM as scattered text at BMU locations.
     Each text is colored based on the emotion value.
@@ -153,8 +152,8 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     plt.figure(figsize=(10, 10))
 
     # Filter out invalid emotion values
-    y = y.astype(float)  # Optional: ensure consistency
-    mask = ~((y == 0.0) | (y == -1.0))
+    y = y.astype(int)  # Optional: ensure consistency
+    mask = ~((y == -1))
     X_filtered = X[mask.values]
     y_filtered = y[mask]
 
@@ -163,18 +162,19 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     cmap = get_cmap("tab10" if val_max <= 10 else "tab20")
 
     # Track added labels to prevent duplicate legends
-    added_labels = set()
+    added_label_values = set()
 
     for x_vec, val in zip(X_filtered, y_filtered):
         bmu = som.winner(x_vec)
         jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
         jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
         color = cmap((val - val_min) / (val_max - val_min))
-        label = str(val) if val not in added_labels else None
-        plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label)
-        added_labels.add(val)
+        label_value = str(val) if val not in added_label_values else None
+        plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label_value)
+        added_label_values.add(val)
 
-    plt.title(f"SOM Emotion Scatter: {emotion}")
+    print("Plotting label scatter for:", label)
+    plt.title(f"SOM Label Scatter: {label}")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
 
@@ -182,10 +182,10 @@ def plot_emotion_scatter(som: MiniSom, X: np.ndarray, y: pd.Series, emotion: str
     handles, labels = plt.gca().get_legend_handles_labels()
     label_handle_pairs = sorted(zip(labels, handles), key=lambda x: float(x[0]))
     sorted_labels, sorted_handles = zip(*label_handle_pairs)
-    plt.legend(sorted_handles, sorted_labels, title="Emotion Scale")
+    plt.legend(sorted_handles, sorted_labels, title="Label values")
 
     plt.tight_layout()
-    plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{emotion}.png")
+    plt.savefig(FIG_DIR / "label_scatter" / f"som_label_scatter_{label}.png")
     plt.close()
 
 def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame, y_df: pd.DataFrame, df: pd.DataFrame):
@@ -199,7 +199,6 @@ def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame, y_df: pd.DataFra
     phase_colors = dict(zip(phase_labels, palette))
 
     plt.figure(figsize=(10, 10))
-    plotted_labels = set()
 
     for phase in phase_labels:
         color = phase_colors[phase]
@@ -318,13 +317,15 @@ def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
 
     # Visualize label heatmaps and scatter maps for each emotion label
     emotions = [
-        'Frustrated', 'alert', 'ashamed', 'inspired', 'nervous',
-        'attentive', 'afraid', 'active', 'determined'
+        'Frustrated','upset','hostile','alert','ashamed',
+        'inspired', 'nervous','attentive','afraid','active','determined'
     ]
     for emotion in emotions:
         if emotion in y_processed.columns:
-            plot_label_heatmaps(som, X_scaled.to_numpy(), y_processed, emotion)
-            plot_emotion_scatter(som, X_scaled.to_numpy(), y_processed[emotion], emotion)
+            plot_emotion_heatmaps(som, X_scaled.to_numpy(), y_processed, emotion)
+    
+    for label in y_processed.columns:
+        plot_label_scatter(som, X_scaled.to_numpy(), y_processed[label], label)
 
     # Phase scatter: Where do phases land on the SOM?
     plot_bmu_scatter_by_phase(som, X_df, y_df, df)
