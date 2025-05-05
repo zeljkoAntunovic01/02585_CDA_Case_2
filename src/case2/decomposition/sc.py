@@ -221,14 +221,14 @@ def plot_sc_subplots(
     Uses the same PCA‐style grid (7″×7″ per subplot, dashed zero‐lines, grid)
     with discrete categories per label.
     """
-    # 1) Build titles dict
+    # Build titles dict
     phases = np.sort(y.index.get_level_values("Phase").unique())
     titles = {"Phase": phases}
     for col in y.columns:
         if col not in titles:
             titles[col] = np.sort(y[col].unique())
 
-    # 2) Grid dimensions
+    # Grid dimensions
     n_plots = len(titles)
     ncols = math.ceil(math.sqrt(n_plots))
     nrows = math.ceil(n_plots / ncols)
@@ -240,7 +240,7 @@ def plot_sc_subplots(
     )
     axes = axes.flatten()
 
-    # 3) Plot each category
+    # Plot each category
     for ax, (title, unique_vals) in zip(axes, titles.items()):
         for val in unique_vals:
             # mask by phase (index) or column
@@ -259,7 +259,6 @@ def plot_sc_subplots(
                 alpha=0.7
             )
 
-        # style like PCA/ICA
         ax.axhline(0, color="grey", linestyle="--", linewidth=1)
         ax.axvline(0, color="grey", linestyle="--", linewidth=1)
         ax.set_xlabel("SC 1")
@@ -268,7 +267,7 @@ def plot_sc_subplots(
         ax.grid(True)
         ax.legend(title=title, loc="best", frameon=False)
 
-    # 4) Hide any extra axes
+    # Hide any extra axes
     for extra_ax in axes[len(titles):]:
         extra_ax.set_visible(False)
 
@@ -329,7 +328,7 @@ def run_sc_pipeline(
     print(
         f"Selected alpha={best_row['lambda']}, k={best_row.noc}, EV={best_row.EV:.5f}")
 
-    # Optional: Plot heatmap (styled to match other figures)
+    # Plot heatmap (styled to match other figures)
     fig, ax = plt.subplots(figsize=(8, 6))
 
     # pivot the DataFrame
@@ -393,7 +392,6 @@ def run_sc_pipeline(
         S2=H_SC[:, top_atoms[1]],
         phases=phases
     )
-    # return evs
 
     # Combined SC subplots for Phase, Puzzler, and all emotions
     print("Plotting SC subplots for Phase, Puzzler, and emotions...")

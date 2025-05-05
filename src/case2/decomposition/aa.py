@@ -213,14 +213,14 @@ def plot_aa_subplots(
     in the same PCA‐style grid (7×7" per subplot, dashed zero‐lines, grid),
     with explicit x‐tick labels on every subplot and no legends.
     """
-    # 1) Build titles dict
+    # Build titles dict
     phases = np.sort(y.index.get_level_values("Phase").unique())
     titles = {"Phase": phases}
     for col in y.columns:
         if col not in titles:
             titles[col] = np.sort(y[col].unique())
 
-    # 2) Grid dims
+    # Grid dims
     n_plots = len(titles)
     ncols = math.ceil(math.sqrt(n_plots))
     nrows = math.ceil(n_plots / ncols)
@@ -232,13 +232,13 @@ def plot_aa_subplots(
     )
     axes = axes.flatten()
 
-    # 3) Precompute jitter
+    # Precompute jitter
     jitter = (np.random.rand(len(closest_archetypes)) - 0.5) * 0.2
 
-    # 4) Determine unique archetypes for x‐ticks
+    # Determine unique archetypes for x‐ticks
     unique_arch = np.sort(np.unique(closest_archetypes))
 
-    # 5) For each label, scatter and set ticks
+    # For each label, scatter and set ticks
     for ax, (title, unique_vals) in zip(axes, titles.items()):
         # scatter points
         for val in unique_vals:
@@ -268,7 +268,7 @@ def plot_aa_subplots(
         ax.set_title(f"{method_name} – {title}")
         ax.grid(True)
 
-    # 6) Hide any unused axes
+    # Hide any unused axes
     for extra_ax in axes[len(titles):]:
         extra_ax.set_visible(False)
 
@@ -293,20 +293,19 @@ def run_aa_pipeline(
 
     print("Running AA pipeline...")
 
-    # 1) Preprocess data
+    # Preprocess data
     X_np = preprocess_for_aa(X)
-    # 2) Evaluate explained variance metric
+    # Evaluate explained variance metric
     evs = []
     for k in k_list:
         XC, varexp, _ = compute_aa(X_np, k)
         evs.append(varexp)
-    # 3) Plot explained variance
+    # Plot explained variance
 
     df = pd.DataFrame({
         'Number of archetypes': k_list,
         'Explained Variance': evs
     })
-    # print(evs)
     # Determine chosen k
     max_ev = 1.0
     eps = 5e-3
@@ -329,7 +328,7 @@ def run_aa_pipeline(
     # Print selected k
     print(f"Selected k = {chosen} with VE = {max_ev:.4f}")
 
-    # 4) Fit final ICA and visualize mixing matrix
+    # Fit final ICA and visualize mixing matrix
     XC_sel, varexp_sel, closest_archetype = compute_aa(X_np, chosen)
     plot_closest_archetypes(closest_archetypes=closest_archetype,
                             feature_names=['Frustrated', 'upset', 'hostile', 'alert', 'ashamed',
