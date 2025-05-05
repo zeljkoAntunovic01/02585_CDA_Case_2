@@ -204,6 +204,7 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
 
             indices = np.where(mask)[0]
             label_val = value + 1 if shift else value
+            label_val = int(label_val) if isinstance(label_val, float) else label_val
 
             ax.scatter(
                 X_pca[indices, 0],
