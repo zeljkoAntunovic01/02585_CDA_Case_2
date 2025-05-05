@@ -48,17 +48,12 @@ def compute_ica(
     """
     ica = FastICA(
         n_components=n_components,algorithm='parallel'
-        # n_components=n_components,
-        # whiten='unit-variance',
-        # random_state=random_state,
-        # max_iter=max_iter,
-        # tol=tol
     )
     # Suppress convergence warnings
     with warnings.catch_warnings():
         warnings.filterwarnings('ignore', category=ConvergenceWarning)
         S = ica.fit_transform(X)
-    A = ica.mixing_.T  # shape (n_components, n_features)
+    A = ica.mixing_.T  
     return S, A
 
 
@@ -216,10 +211,11 @@ def run_ica_pipeline(
 
     print("Running ICA pipeline...")
     
-    # 1) Preprocess data
+    # Preprocess data
     Xc = preprocess_for_ica(X)
     X_np = Xc.values
-    # 2) Evaluate explained variance metric
+
+    # Evaluate explained variance metric
     total_ss = np.linalg.norm(X_np)**2
     evs: List[float] = []
     for k in k_list:
@@ -227,12 +223,11 @@ def run_ica_pipeline(
         Xhat = np.dot(S, A)
         sse = np.linalg.norm(X_np - Xhat)**2
         evs.append(1 - sse/total_ss)
-        # 3) Plot explained variance
+        # Plot explained variance
     fig, ax = plt.subplots()
     ax.plot(k_list, evs, marker='o', label='Explained Variance')
 
     # Determine chosen k as the smallest k with maximal explained variance
-    # max_ev = 1.0
     max_ev = max(evs)
     eps = 1e-4
     chosen = None
@@ -251,14 +246,13 @@ def run_ica_pipeline(
     fig.savefig(save_path)
     plt.close(fig)
 
-    # Print selected k
     print(f"Selected k = {chosen} with VE = {max_ev:.4f}")
 
-    # 4) Fit final ICA and visualize mixing matrix
+    # Fit final ICA and visualize mixing matrix
     S_sel, A_sel = compute_ica(X_np, chosen)
     plot_mixing_matrix_grid(A_sel, list(X.columns))
 
-    # 5+6) Single figure with Phase, Puzzler, and all emotions
+    # Single figure with Phase, Puzzler, and all emotions
     print("Plotting ICA scatter for Phase, Puzzler, and emotions...")
     plot_ica_subplots(S_sel, y)
 

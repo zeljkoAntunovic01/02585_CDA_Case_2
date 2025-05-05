@@ -11,7 +11,6 @@ import math
 
 sns.set_theme(style="darkgrid")
 
-
 # Directory to save figures
 FIGURE_DIR = Path(__file__).expanduser().parent.parent.parent.parent / 'docs' / 'figures' / 'nmf' 
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
@@ -34,11 +33,11 @@ def preprocess_for_nmf(
     shifts : pd.Series
         The amount each original column was shifted (min value).
     """
-    # 1) Copy & impute
+    # Copy & impute
     X_nonneg = X.copy().astype(float)
     X_nonneg = X_nonneg.fillna(X_nonneg.median())
 
-    # 2) Record shifts & make non-negative
+    # Record shifts & make non-negative
     shifts = pd.Series(index=X_nonneg.columns, dtype=float)
     for col in X_nonneg.columns:
         min_val = X_nonneg[col].min()
@@ -144,17 +143,17 @@ def plot_nmf_subplots(
     Uses the same style/layout as the PCA subplots,
     but skips any points where W[:,0] or W[:,1] is NaN.
     """
-    # 1) Build titles dict
+    # Build titles dict
     phases = np.sort(y.index.get_level_values("Phase").unique())
     titles = {"Phase": phases}
     for col in y.columns:
         if col not in titles and col not in ["Individual", "Round"]:
             titles[col] = np.sort(y[col].unique())
 
-    # 2) Compute valid‐point mask once
+    # Compute valid‐point mask once
     valid = np.isfinite(W[:, 0]) & np.isfinite(W[:, 1])
 
-    # 3) Grid dimensions
+    # Grid dimensions
     n_plots = len(titles)
     ncols = math.ceil(math.sqrt(n_plots))
     nrows = math.ceil(n_plots / ncols)
@@ -166,7 +165,7 @@ def plot_nmf_subplots(
     )
     axes = axes.flatten()
 
-    # 4) Scatter by each label, filtering out NaNs
+    # Scatter by each label, filtering out NaNs
     for ax, (title, unique_vals) in zip(axes, titles.items()):
         for val in unique_vals:
             try:
@@ -186,7 +185,6 @@ def plot_nmf_subplots(
                 alpha=0.7
             )
 
-        # PCA‐style axes and grid
         ax.set_xlabel("Comp 1")
         ax.set_ylabel("Comp 2")
         ax.axhline(0, color="grey", linestyle="--", linewidth=1)
@@ -195,7 +193,7 @@ def plot_nmf_subplots(
         ax.grid(True)
         ax.set_title(f"{method_name} - {title}")
 
-    # 5) Disable any extra axes
+    # Disable any extra axes
     for ax in axes[len(titles):]:
         ax.set_visible(False)
 
@@ -220,28 +218,26 @@ def run_nmf_pipeline(
 
     print("Running NMF pipeline...")
     
-    # 1) Preprocess and evaluate
+    # Preprocess and evaluate
     X_nonneg, _ = preprocess_for_nmf(X)
     errs = evaluate_nmf(X_nonneg, k_list)
 
-    # 2) Compute explained variance
+    # Compute explained variance
     total_ss = np.linalg.norm(X_nonneg.values)**2
     explained_var = [1 - (err**2)/total_ss for err in errs]
 
-    # 3) Determine chosen k
+    # Determine chosen k
     chosen = select_k or k_list[int(np.argmax(explained_var))]
     print(f"Selected k = {chosen} with VE = {explained_var[k_list.index(chosen)]:.4f}")
 
-    # 4) Plot explained variance with vertical marker
+    # Plot explained variance with vertical marker
     plot_explained_variance(k_list, explained_var, chosen_k=chosen)
-
-    # after computing W_sel, H_sel in run_nmf_pipeline...
     W_sel, H_sel, _ = compute_nmf(X_nonneg.values, chosen)
 
-    # existing bar‐grid
+    # component bar‐grid
     plot_components_grid(H_sel, list(X.columns))    
 
-    # new NMF scatter‐subplots
+    # NMF scatter‐subplots
     print("Plotting NMF scatter subplots for Phase, Puzzler, and emotions...")
     plot_nmf_subplots(
         W_sel,
