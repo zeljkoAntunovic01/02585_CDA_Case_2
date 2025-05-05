@@ -25,12 +25,10 @@ def preprocess_for_ica(
     X: pd.DataFrame
 ) -> pd.DataFrame:
     """
-    Impute missing values, then center data for ICA.
+    Center data for ICA.
     """
-    # Impute missing values with column medians
-    X_imputed = X.fillna(X.median())
     # Center the data
-    Xc = X_imputed - X_imputed.mean()
+    Xc = X- X.mean()
     return Xc
 
 def compute_ica(

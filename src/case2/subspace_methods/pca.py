@@ -10,46 +10,6 @@ sns.set(style="darkgrid")
 
 FIGURE_DIR = Path(__file__).resolve().parent.parent.parent.parent / "docs" / "figures"
 
-
-def preprocess_pca_data(X: np.ndarray, y: np.ndarray) -> tuple:
-    """
-    Preprocess the data for PCA by centering and imputing missing values.
-
-    Parameters
-    ----------
-    X : np.ndarray
-        Input data for PCA.
-    y : np.ndarray
-        Labels/responses matrix.
-
-    Returns
-    -------
-    X_preprocessed : np.ndarray
-        Preprocessed input data for PCA.
-    y_preprocessed : np.ndarray
-        Preprocessed labels/responses matrix.
-    """
-
-    X_centered = X - np.mean(X, axis=0)
-
-    # Impute missing values with the median of each column
-    X_imputed = X_centered.fillna(X_centered.median())
-
-    S = np.linalg.norm(X_imputed, axis=0)
-    X_preprocessed = X_imputed / S
-
-    cohort_mapping = {"D1_1": 1, "D1_2": 2, "D1_3": 3, "D1_4": 4, "D1_5": 5, "D1_6": 6}
-
-    y = pd.DataFrame(y)
-    # Map cohort names to numbers
-    y_mapped = y.copy()
-    y_mapped["Cohort"] = y_mapped["Cohort"].map(cohort_mapping)
-
-    y_preprocessed = y_mapped.fillna(-1)
-
-    return X_preprocessed, y_preprocessed
-
-
 def plot_explained_variance(pca: PCA) -> None:
     """
     Plot the explained variance ratio.
@@ -318,7 +278,7 @@ def print_top_features(pca: PCA, features: list, n_features: int = 3) -> None:
     print("Top features saved to file.")
 
 
-def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
+def pca_pipeline(pca: PCA, X: pd.DataFrame, X_processed: pd.DataFrame, y_processed: pd.DataFrame) -> None:
     """
     Run the PCA pipeline: load data, preprocess, fit PCA, and plot results.
 
@@ -328,14 +288,13 @@ def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
         PCA object to use for the analysis.
     X : pd.DataFrame
         Input data for PCA.
-    y : pd.DataFrame
+    X_processed : pd.DataFrame
+        Processed input data for PCA.
+    y_processed : pd.DataFrame
         Labels/responses matrix.
     """
-    # Preprocess data
-    X_preprocessed, y_preprocessed = preprocess_pca_data(X, y)
-
     # Fit PCA
-    pca.fit(X_preprocessed)
+    pca.fit(X_processed)
 
     if isinstance(pca, SparsePCA):
         print("Sparse PCA")
@@ -346,25 +305,25 @@ def pca_pipeline(pca: PCA, X: pd.DataFrame, y: pd.DataFrame) -> None:
         plot_explained_variance(pca)
 
         # Scree plot
-        scree_plot(X_preprocessed, pca)
+        scree_plot(X_processed, pca)
 
     # Correlation matrix
-    pca_correlation_matrix(X_preprocessed, pca)
+    pca_correlation_matrix(X_processed, pca)
 
     # Plot PCA
-    plot_pca(X_preprocessed, y_preprocessed, pca)
+    plot_pca(X_processed, y_processed, pca)
 
     # # Plot PCA loadings
     features = X.columns[::8]
-    plot_features_against_loadings(X_preprocessed, features, pca)
+    plot_features_against_loadings(X_processed, features, pca)
 
     # Print top features
     print_top_features(pca, X.columns, n_features=3)
 
 
-def run_pca_pipeline(X: pd.DataFrame, y: pd.DataFrame):
+def run_pca_pipeline(X: pd.DataFrame, X_processed: pd.DataFrame, y_processed: pd.DataFrame):
     # Example usage
     pca = PCA(n_components=10)
-    pca_pipeline(pca, X, y)
+    pca_pipeline(pca, X, X_processed, y_processed)
     sparse_pca = SparsePCA(n_components=10, alpha=0.1, ridge_alpha=0.1)
-    pca_pipeline(sparse_pca, X, y)
+    pca_pipeline(sparse_pca, X, X_processed, y_processed)
