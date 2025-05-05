@@ -191,7 +191,6 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
     # Iterate over each title and plot
     for ax, (title, unique_values) in zip(axes, titles.items()):
         # Determine if values need rescaling
-        shift = 0 in unique_values
 
         for value in unique_values:
             try:
@@ -203,9 +202,7 @@ def plot_pca(X: np.ndarray, y: np.ndarray, pca: PCA) -> None:
                     mask = data[title] == value
 
             indices = np.where(mask)[0]
-            label_val = value + 1 if shift else value
-            label_val = int(label_val) if isinstance(label_val, float) else label_val
-
+            label_val = int(value) if isinstance(value, float) else value
             ax.scatter(
                 X_pca[indices, 0],
                 X_pca[indices, 1],
