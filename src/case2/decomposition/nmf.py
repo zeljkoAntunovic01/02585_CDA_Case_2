@@ -20,7 +20,7 @@ def preprocess_for_nmf(
     X: pd.DataFrame
 ) -> Tuple[pd.DataFrame, pd.Series]:
     """
-    Impute missing values, shift data to be non-negative, and drop any zero-variance features.
+    Shift data to be non-negative, and drop any zero-variance features.
     
     Parameters
     ----------
@@ -29,23 +29,20 @@ def preprocess_for_nmf(
 
     Returns
     -------
-    X_nonneg : pd.DataFrame
-        The non-negative, imputed feature matrix with zero-variance columns removed.
+    X : pd.DataFrame
+        The non-negative matrix with zero-variance columns removed.
     shifts : pd.Series
         The amount each original column was shifted (min value).
     """
-    # 1) Copy & impute
-    X_nonneg = X.copy().astype(float)
-    X_nonneg = X_nonneg.fillna(X_nonneg.median())
 
-    # 2) Record shifts & make non-negative
-    shifts = pd.Series(index=X_nonneg.columns, dtype=float)
-    for col in X_nonneg.columns:
-        min_val = X_nonneg[col].min()
+    # Record shifts & make non-negative
+    shifts = pd.Series(index=X.columns, dtype=float)
+    for col in X.columns:
+        min_val = X[col].min()
         shifts[col] = min_val
         if min_val < 0:
-            X_nonneg[col] -= min_val
-    return X_nonneg, shifts
+            X[col] -= min_val
+    return X, shifts
 
 
 def compute_nmf(

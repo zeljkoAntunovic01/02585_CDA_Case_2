@@ -11,37 +11,6 @@ import os
 sns.set_theme(style="darkgrid")
 FIG_DIR = Path(__file__).parent.parent.parent.parent / "docs" / "figures" / "som"
 
-def preprocess_som_data(X: pd.DataFrame, y: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
-    """
-    Preprocess the data for SOM by centering, imputing, and normalizing.
-
-    Parameters
-    ----------
-    X : pd.DataFrame
-        Input data for SOM.
-    y : pd.DataFrame
-        Labels/responses matrix.
-
-    Returns
-    -------
-    X_preprocessed : pd.DataFrame
-        Preprocessed input data for SOM.
-    y_preprocessed : pd.DataFrame
-        Preprocessed labels/responses matrix.
-    """
-    X_centered = X - X.mean(axis=0)
-    X_imputed = X_centered.fillna(X_centered.median())
-    S = np.linalg.norm(X_imputed, axis=0)
-    X_preprocessed = (X_imputed / S)
-
-    cohort_mapping = {"D1_1": 1, "D1_2": 2, "D1_3": 3, "D1_4": 4, "D1_5": 5, "D1_6": 6}
-    y_mapped = y.copy()
-    if "Cohort" in y.columns:
-        y_mapped["Cohort"] = y_mapped["Cohort"].map(cohort_mapping)
-
-    y_preprocessed = y_mapped.fillna(-1)
-    return X_preprocessed, y_preprocessed
-
 def get_phase_specific_data(X_df: pd.DataFrame, y_df: pd.DataFrame, full_df: pd.DataFrame, phase_name: str) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
     Filters feature and label data for a given phase.
@@ -173,7 +142,6 @@ def plot_label_scatter(som: MiniSom, X: np.ndarray, y: pd.DataFrame, label: str)
         plt.plot(jitter_x, jitter_y, 'o', color=color, alpha=0.7, label=label_value)
         added_label_values.add(val)
 
-    print("Plotting label scatter for:", label)
     plt.title(f"SOM Label Scatter: {label}")
     plt.axis([0, som.get_weights().shape[0], 0, som.get_weights().shape[1]])
     plt.gca().invert_yaxis()
@@ -202,10 +170,9 @@ def plot_bmu_scatter_by_phase(som: MiniSom, X_df: pd.DataFrame, y_df: pd.DataFra
 
     for phase in phase_labels:
         color = phase_colors[phase]
-        X_phase_df, _ = get_phase_specific_data(X_df, y_df, df, phase)
-        X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])
+        X_phase, _ = get_phase_specific_data(X_df, y_df, df, phase)
         xs, ys = [], []
-        for x in X_phase_scaled.to_numpy():
+        for x in X_phase.to_numpy():
             bmu = som.winner(x)
             jitter_x = bmu[0] + 0.5 + 0.6 * np.random.rand() - 0.3
             jitter_y = bmu[1] + 0.5 + 0.6 * np.random.rand() - 0.3
@@ -288,7 +255,7 @@ def plot_phase_trajectories(som: MiniSom, X_scaled: pd.DataFrame, df: pd.DataFra
     plt.savefig(FIG_DIR / "som_phase_trajectories.png")
     plt.close()
 
-def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
+def som_pipeline(df: pd.DataFrame, X_scaled: pd.DataFrame, y_processed:pd.DataFrame):
     """
     Main pipeline for SOM analysis.
     1. Load and preprocess data.
@@ -300,9 +267,6 @@ def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
          - Phase-wise hit maps
          - Plot trajectories for individuals
      """
-    # Preprocess data
-    X_scaled, y_processed = preprocess_som_data(X_df, y_df)
-
     # Train SOM
     som = train_som(X_scaled.to_numpy(), x_dim=12, y_dim=12, num_iter=5000)
 
@@ -328,13 +292,12 @@ def som_pipeline(df: pd.DataFrame, X_df: pd.DataFrame, y_df:pd.DataFrame):
         plot_label_scatter(som, X_scaled.to_numpy(), y_processed[label], label)
 
     # Phase scatter: Where do phases land on the SOM?
-    plot_bmu_scatter_by_phase(som, X_df, y_df, df)
+    plot_bmu_scatter_by_phase(som, X_scaled, y_processed, df)
 
     # Phase-wise hit maps
     for phase in ['phase1', 'phase2', 'phase3']:
-        X_phase_df, _ = get_phase_specific_data(X_df, y_df, df, phase)
-        X_phase_scaled, _ = preprocess_som_data(X_phase_df, y_df.loc[X_phase_df.index])
-        plot_phase_hitmap(som, X_phase_scaled.to_numpy(), phase)
+        X_phase, _ = get_phase_specific_data(X_scaled, y_processed, df, phase)
+        plot_phase_hitmap(som, X_phase.to_numpy(), phase)
 
     # Plot trajectories for individuals
     plot_phase_trajectories(som, X_scaled, df, max_individuals=3)

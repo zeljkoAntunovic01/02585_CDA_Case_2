@@ -1,5 +1,6 @@
 # src/hr_data_loader.py
 
+import numpy as np
 import pandas as pd
 from pathlib import Path
 from typing import Tuple
@@ -70,44 +71,49 @@ def split_features_and_labels(
     y = df[label_cols].copy()
     return X, y
 
-def run_data_loading():
-    # base = Path(__file__).parent.parent.parent / 'data' / 'raw' 
-    # print("Loading datasets from:", base)
-    # hr_file = base / 'HR_data.csv'
-    # hr_df = load_hr_data(hr_file)
-    # X, y = split_features_and_labels(hr_df)
+def preprocess_data_for_subspace_methods(X: pd.DataFrame, y: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
+    """
+    Preprocess the data by centering and normalizing.
 
-    # print("Loaded HR_data.csv with shape:", hr_df.shape)
-    # print(hr_df.head)
-    # print("Feature matrix X shape:", X.shape)
-    # print(X.head())
-    # print("Labels matrix y shape:", y.shape)
-    # print(y.head())
-    # return hr_df, X, y
+    Parameters
+    ----------
+    X : pd.DataFrame
+        Physiological input data.
+    y : pd.DataFrame
+        Labels/responses matrix.
+
+    Returns
+    -------
+    X_preprocessed : pd.DataFrame
+        Preprocessed physiological input data.
+    y_preprocessed : pd.DataFrame
+        Preprocessed labels/responses matrix.
+    """
+    X_centered = X - X.mean(axis=0)
+
+    S = np.linalg.norm(X_centered, axis=0)
+    X_preprocessed = (X_centered / S)
+
+    cohort_mapping = {"D1_1": 1, "D1_2": 2, "D1_3": 3, "D1_4": 4, "D1_5": 5, "D1_6": 6}
+    y_mapped = y.copy()
+    if "Cohort" in y.columns:
+        y_mapped["Cohort"] = y_mapped["Cohort"].map(cohort_mapping)
+
+    y_preprocessed = y_mapped.fillna(-1)
+    return X_preprocessed, y_preprocessed
+
+def run_data_loading():
     # Determine directories
     base = Path(__file__).parent.parent.parent  # project root
     raw = base / 'data' / 'raw'
-    processed = base / 'data' / 'processed'
-
-    # Ensure processed directory exists
-    processed.mkdir(parents=True, exist_ok=True)
 
     print("Loading datasets from:", raw)
     hr_file = raw / 'HR_data.csv'
     hr_df = load_hr_data(hr_file)
     X, y = split_features_and_labels(hr_df)
 
-    # Save processed outputs
-    X.to_csv(processed / 'X.csv')
-    y.to_csv(processed / 'y.csv')
-    hr_df.to_csv(processed / 'HR_data_processed.csv')
-
-    print("Saved processed data to:", processed)
-    # print("HR_data shape:", hr_df.shape)
-    # print(hr_df.head())
-    # print("Feature matrix X shape:", X.shape)
-    # print(X.head())
-    # print("Labels matrix y shape:", y.shape)
-    # print(y.head())
+    # Impute missing values in X, float cast numeric columns
+    X = X.fillna(X.median())
+    X = X.copy().astype(float)
 
     return hr_df, X, y

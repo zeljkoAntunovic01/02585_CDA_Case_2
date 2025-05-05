@@ -28,26 +28,11 @@ FIGURE_DIR = Path(__file__).expanduser(
 ).parent.parent.parent.parent / 'docs' / 'figures' / 'sc'
 FIGURE_DIR.mkdir(parents=True, exist_ok=True)
 
-
-def preprocess_for_sc(
-    X: pd.DataFrame
-) -> pd.DataFrame:
-    """
-    Impute missing values.
-    """
-    # Impute missing values with column medians
-    X_imputed = X.fillna(X.median())
-    return X_imputed
-
-
 def compute_sc(
     X: np.ndarray,
     n_components: int,
     lambda_: float
 ) -> Tuple[np.ndarray, np.ndarray]:
-    '''
-
-    '''
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
     model = DictionaryLearning(n_components=n_components, alpha=lambda_, transform_alpha=lambda_,
@@ -307,10 +292,8 @@ def run_sc_pipeline(
 
     print("Running SC pipeline...")
 
-    # 1) Preprocess data
-    Xc = preprocess_for_sc(X)
-    X_np = Xc.values
-    # 2) Evaluate explained variance metric
+    X_np = X.values
+    # Evaluate explained variance metric
 
     # Grid of hyperparameters
     alpha_list = [1e-4, 1e-3, 1e-2, 1e-1, 1]
@@ -329,7 +312,6 @@ def run_sc_pipeline(
             X_recon = X_transformed @ model.components_
             ev = explained_variance_score(X_val_scaled, X_recon)
             results.append((k, alpha, ev))
-            # print(f"Alpha={alpha}, k={k}, EV={ev:.6f}")
 
     # Format results
     results_df = pd.DataFrame(
@@ -388,12 +370,12 @@ def run_sc_pipeline(
     plt.savefig(FIGURE_DIR / "sc_elementwise_cv.png", dpi=300)
     plt.close(fig)
 
-    # 4) Fit final SC and visualize mixing matrix
+    # Fit final SC and visualize mixing matrix
     scaler, model, H_SC = compute_sc(X_np, best_k, best_alpha)
-    # 5) Plot mixing matrix
+    # Plot mixing matrix
     plot_sc_h_elements(H_SC.T, best_alpha)
 
-    # 6) Plot scatter of SC components colored by emotion labels
+    # Plot scatter of SC components colored by emotion labels
     mean_usage = np.mean(np.abs(H_SC), axis=0)
     top_atoms = np.argsort(mean_usage)[::-1][:2]
     emotions = ['Frustrated', 'upset', 'hostile', 'alert', 'ashamed',
@@ -404,7 +386,7 @@ def run_sc_pipeline(
         y=y,
         emotions=emotions
     )
-    # 7) Plot scatter of SC components colored by phase labels
+    # Plot scatter of SC components colored by phase labels
     phases = y.index.get_level_values('Phase').astype(str).tolist()
     plot_sc_scatter_phase(
         S1=H_SC[:, top_atoms[0]],
@@ -413,7 +395,7 @@ def run_sc_pipeline(
     )
     # return evs
 
-        # 8) Combined SC subplots for Phase, Puzzler, and all emotions
+    # Combined SC subplots for Phase, Puzzler, and all emotions
     print("Plotting SC subplots for Phase, Puzzler, and emotions...")
     plot_sc_subplots(
         S1=H_SC[:, top_atoms[0]],

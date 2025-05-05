@@ -23,12 +23,10 @@ def preprocess_for_aa(
     X: pd.DataFrame
 ) -> pd.DataFrame:
     """
-    Impute missing values, then center data for ICA.
+    Standardize the data for AA.
     """
-    # Impute missing values with column medians
-    X_imputed = X.fillna(X.median())
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_imputed)
+    X_scaled = scaler.fit_transform(X)
     return X_scaled+10
 
 
